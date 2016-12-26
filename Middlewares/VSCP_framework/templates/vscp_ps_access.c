@@ -41,6 +41,7 @@
     INCLUDES
 *******************************************************************************/
 #include "vscp_ps_access.h"
+#include "eeprom.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -81,9 +82,7 @@
  */
 extern void vscp_ps_access_init(void)
 {
-    /* Implement your code here ... */
-
-    return;
+    EE_Init();
 }
 
 /**
