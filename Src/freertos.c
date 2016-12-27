@@ -149,6 +149,8 @@ void taskVSCP_core_process(void const * argument)
 {
   /* USER CODE BEGIN taskVSCP_core_process */
   TickType_t xLastWakeTime;
+  volatile uint8_t VSCP_Button_pressed = 0;  
+    
   vscp_core_init();
   xLastWakeTime = xTaskGetTickCount();
   /* Infinite loop */
@@ -157,6 +159,11 @@ void taskVSCP_core_process(void const * argument)
     osDelayUntil(&xLastWakeTime, VSCP_CORE_PERIOD/portTICK_PERIOD_MS);
     xLastWakeTime = xTaskGetTickCount();
     vscp_core_process();
+    if (VSCP_Button_pressed)
+    {
+        vscp_core_startNodeSegmentInit();
+        VSCP_Button_pressed = 0;
+    }
 
   }
   /* USER CODE END taskVSCP_core_process */
@@ -173,7 +180,7 @@ void taskVSCP_timer_process(void const * argument)
   {
     osDelayUntil(&xLastWakeTime, (VSCP_TIMER_PERIOD/portTICK_PERIOD_MS));
     xLastWakeTime = xTaskGetTickCount();
-    vscp_timer_process(VSCP_TIMER_PERIOD/portTICK_PERIOD_MS);
+    vscp_timer_process(VSCP_TIMER_PERIOD);
   }
   /* USER CODE END taskVSCP_timer_process */
 }
