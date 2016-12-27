@@ -93,11 +93,11 @@ extern void vscp_ps_access_init(void)
  */
 extern uint8_t  vscp_ps_access_read8(uint16_t addr)
 {
-    uint8_t data    = 0;
+    uint16_t data    = 0;
 
-    /* Implement your code here ... */
+    EE_ReadVariable(addr, &data);
 
-    return data;
+    return (uint8_t)data;
 }
 
 /**
@@ -108,7 +108,7 @@ extern uint8_t  vscp_ps_access_read8(uint16_t addr)
  */
 extern void vscp_ps_access_write8(uint16_t addr, uint8_t value)
 {
-    /* Implement your code here ... */
+    EE_WriteVariable(addr, (uint16_t)value);
 
     return;
 }
