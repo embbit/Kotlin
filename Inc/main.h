@@ -52,13 +52,11 @@
 /* Private define ------------------------------------------------------------*/
 #define VSCP_CORE_PERIOD 100
 #define VSCP_TIMER_PERIOD 1000
+#define VSCP_LED_PERIOD_FAST 100
+#define VSCP_LED_PERIOD_SLOW 500
 
-#define LED_BLUE_Pin GPIO_PIN_13
-#define LED_BLUE_GPIO_Port GPIOC
-#define LED_RED_Pin GPIO_PIN_14
-#define LED_RED_GPIO_Port GPIOC
-#define LED_GREEN_Pin GPIO_PIN_15
-#define LED_GREEN_GPIO_Port GPIOC
+#define VSCP_LED_Pin GPIO_PIN_14
+#define VSCP_LED_GPIO_Port GPIOC
 #define S2_IN_Pin GPIO_PIN_1
 #define S2_IN_GPIO_Port GPIOC
 #define HS_LS_IN_Pin GPIO_PIN_2

@@ -42,6 +42,8 @@
 *******************************************************************************/
 #include "vscp_portable.h"
 #include "vscp_core.h"
+#include "cmsis_os.h"
+//#include "queue.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -70,7 +72,7 @@
 /*******************************************************************************
     GLOBAL VARIABLES
 *******************************************************************************/
-
+extern osMessageQId queueVSCP_LED_taskHandle;
 /*******************************************************************************
     GLOBAL FUNCTIONS
 *******************************************************************************/
@@ -102,26 +104,9 @@ extern void vscp_portable_restoreFactoryDefaultSettings(void)
  */
 extern void vscp_portable_setLampState(VSCP_LAMP_STATE state)
 {
-    switch(state)
+    if( 0 != queueVSCP_LED_taskHandle )
     {
-    case VSCP_LAMP_STATE_OFF:
-        /* Implement your code here ... */
-        break;
-
-    case VSCP_LAMP_STATE_ON:
-        /* Implement your code here ... */
-        break;
-
-    case VSCP_LAMP_STATE_BLINK_SLOW:
-        /* Implement your code here ... */
-        break;
-
-    case VSCP_LAMP_STATE_BLINK_FAST:
-        /* Implement your code here ... */
-        break;
-
-    default:
-        break;
+       xQueueSendToBack( queueVSCP_LED_taskHandle, &state, 0);
     }
 
     return;

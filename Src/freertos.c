@@ -49,12 +49,16 @@
 /* USER CODE BEGIN Includes */     
 #include "vscp_core.h"
 #include "vscp_timer.h"
+#include "main.h"
+#include "gpio.h"
 /* USER CODE END Includes */
 
 /* Variables -----------------------------------------------------------------*/
 osThreadId defaultTaskHandle;
 osThreadId VSCP_coreHandle;
 osThreadId VSCP_timerHandle;
+osThreadId VSCP_LEDHandle;
+osMessageQId queueVSCP_LED_taskHandle;
 
 /* USER CODE BEGIN Variables */
 
@@ -64,6 +68,7 @@ osThreadId VSCP_timerHandle;
 void StartDefaultTask(void const * argument);
 void taskVSCP_core_process(void const * argument);
 void taskVSCP_timer_process(void const * argument);
+void taskVSCP_LED_worker(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -106,9 +111,18 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(VSCP_timer, taskVSCP_timer_process, osPriorityNormal, 0, 128);
   VSCP_timerHandle = osThreadCreate(osThread(VSCP_timer), NULL);
 
+  /* definition and creation of VSCP_LED */
+  osThreadDef(VSCP_LED, taskVSCP_LED_worker, osPriorityBelowNormal, 0, 128);
+  VSCP_LEDHandle = osThreadCreate(osThread(VSCP_LED), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the queue(s) */
+  /* definition and creation of queueVSCP_LED_task */
+  osMessageQDef(queueVSCP_LED_task, 4, VSCP_LAMP_STATE);
+  queueVSCP_LED_taskHandle = osMessageCreate(osMessageQ(queueVSCP_LED_task), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -162,6 +176,46 @@ void taskVSCP_timer_process(void const * argument)
     vscp_timer_process(VSCP_TIMER_PERIOD/portTICK_PERIOD_MS);
   }
   /* USER CODE END taskVSCP_timer_process */
+}
+
+/* taskVSCP_LED_worker function */
+void taskVSCP_LED_worker(void const * argument)
+{
+  /* USER CODE BEGIN taskVSCP_LED_worker */
+  VSCP_LAMP_STATE state;
+  TickType_t Period = portMAX_DELAY;   
+    
+  /* Infinite loop */
+  for(;;)
+  {
+      if ( 0 != queueVSCP_LED_taskHandle )
+      {
+         xQueueReceive( queueVSCP_LED_taskHandle, &( state ), Period );
+         switch (state)
+         {
+             case VSCP_LAMP_STATE_ON:
+                 Period = portMAX_DELAY;
+                 HAL_GPIO_WritePin(VSCP_LED_GPIO_Port, VSCP_LED_Pin, GPIO_PIN_RESET);
+                 break;
+             case VSCP_LAMP_STATE_OFF:
+                 Period = portMAX_DELAY;
+                 HAL_GPIO_WritePin(VSCP_LED_GPIO_Port, VSCP_LED_Pin, GPIO_PIN_SET);
+                 break;
+             case VSCP_LAMP_STATE_BLINK_FAST:
+                 Period = VSCP_LED_PERIOD_FAST / portTICK_PERIOD_MS;
+                 HAL_GPIO_TogglePin(VSCP_LED_GPIO_Port, VSCP_LED_Pin);
+                 break;
+             case VSCP_LAMP_STATE_BLINK_SLOW:
+                 Period = VSCP_LED_PERIOD_SLOW / portTICK_PERIOD_MS;
+                 HAL_GPIO_TogglePin(VSCP_LED_GPIO_Port, VSCP_LED_Pin);
+                 break;
+             default:
+                 break;
+         
+         }         
+      }
+  }
+  /* USER CODE END taskVSCP_LED_worker */
 }
 
 /* USER CODE BEGIN Application */
