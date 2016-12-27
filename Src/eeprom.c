@@ -64,6 +64,9 @@ static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Da
 static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data);
 static uint16_t EE_VerifyPageFullyErased(uint32_t Address);
 
+static volatile const uint8_t EE_SpaceHolder[(PAGE1_END_ADDRESS - PAGE0_BASE_ADDRESS)]  __attribute__((at(EEPROM_START_ADDRESS)));
+
+
 /**
   * @brief  Restore the pages to a known good state in case of page's status
   *   corruption after a power loss.

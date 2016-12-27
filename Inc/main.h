@@ -50,6 +50,8 @@
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
+#define VSCP_CORE_PERIOD 100
+#define VSCP_TIMER_PERIOD 1000
 
 #define LED_BLUE_Pin GPIO_PIN_13
 #define LED_BLUE_GPIO_Port GPIOC

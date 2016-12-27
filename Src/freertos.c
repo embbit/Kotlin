@@ -47,13 +47,14 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */     
-
+#include "vscp_core.h"
+#include "vscp_timer.h"
 /* USER CODE END Includes */
 
 /* Variables -----------------------------------------------------------------*/
 osThreadId defaultTaskHandle;
-osTimerId osVSCPtimerprocessHandle;
-osTimerId osVSCPcoreprocessHandle;
+osThreadId VSCP_coreHandle;
+osThreadId VSCP_timerHandle;
 
 /* USER CODE BEGIN Variables */
 
@@ -61,8 +62,8 @@ osTimerId osVSCPcoreprocessHandle;
 
 /* Function prototypes -------------------------------------------------------*/
 void StartDefaultTask(void const * argument);
-extern void vscp_timer_process(void const * argument);
-extern void vscp_core_process(void const * argument);
+void taskVSCP_core_process(void const * argument);
+void taskVSCP_timer_process(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -88,25 +89,22 @@ void MX_FREERTOS_Init(void) {
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
-  /* Create the timer(s) */
-  /* definition and creation of osVSCPtimerprocess */
-  osTimerDef(osVSCPtimerprocess, vscp_timer_process);
-  osVSCPtimerprocessHandle = osTimerCreate(osTimer(osVSCPtimerprocess), osTimerPeriodic, NULL);
-
-  /* definition and creation of osVSCPcoreprocess */
-  osTimerDef(osVSCPcoreprocess, vscp_core_process);
-  osVSCPcoreprocessHandle = osTimerCreate(osTimer(osVSCPcoreprocess), osTimerPeriodic, NULL);
-
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
-  osTimerStart(osVSCPcoreprocessHandle, 10);
-  osTimerStart(osVSCPtimerprocessHandle, 100);
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+  /* definition and creation of VSCP_core */
+  osThreadDef(VSCP_core, taskVSCP_core_process, osPriorityNormal, 0, 128);
+  VSCP_coreHandle = osThreadCreate(osThread(VSCP_core), NULL);
+
+  /* definition and creation of VSCP_timer */
+  osThreadDef(VSCP_timer, taskVSCP_timer_process, osPriorityNormal, 0, 128);
+  VSCP_timerHandle = osThreadCreate(osThread(VSCP_timer), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -130,6 +128,40 @@ void StartDefaultTask(void const * argument)
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
+}
+
+/* taskVSCP_core_process function */
+void taskVSCP_core_process(void const * argument)
+{
+  /* USER CODE BEGIN taskVSCP_core_process */
+  TickType_t xLastWakeTime;
+  vscp_core_init();
+  xLastWakeTime = xTaskGetTickCount();
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelayUntil(&xLastWakeTime, VSCP_CORE_PERIOD/portTICK_PERIOD_MS);
+    xLastWakeTime = xTaskGetTickCount();
+    vscp_core_process();
+
+  }
+  /* USER CODE END taskVSCP_core_process */
+}
+
+/* taskVSCP_timer_process function */
+void taskVSCP_timer_process(void const * argument)
+{
+  /* USER CODE BEGIN taskVSCP_timer_process */
+  TickType_t xLastWakeTime;
+  xLastWakeTime = xTaskGetTickCount();    
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelayUntil(&xLastWakeTime, (VSCP_TIMER_PERIOD/portTICK_PERIOD_MS));
+    xLastWakeTime = xTaskGetTickCount();
+    vscp_timer_process(VSCP_TIMER_PERIOD/portTICK_PERIOD_MS);
+  }
+  /* USER CODE END taskVSCP_timer_process */
 }
 
 /* USER CODE BEGIN Application */

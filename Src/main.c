@@ -96,7 +96,7 @@ int main(void)
   MX_WWDG_Init();
 
   /* USER CODE BEGIN 2 */
-  VSCP_CORE_RET vscp_core_init(void);
+  vscp_core_init();
 
   /* USER CODE END 2 */
 
