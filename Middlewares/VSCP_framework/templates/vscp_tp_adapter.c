@@ -111,7 +111,7 @@ extern BOOL vscp_tp_adapter_readMessage(vscp_RxMessage * const msg)
            msg->oAddr = (uint8_t)(RxMessage.ExtId & 0xFF);           
            msg->dataNum = RxMessage.DLC;
           
-           for (DataCounter = 0; DataCounter < TxMessage.DLC; TxMessage.DLC++)
+           for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
            {
                msg->data[DataCounter] = RxMessage.Data[DataCounter];        
            }           
@@ -148,7 +148,7 @@ extern BOOL vscp_tp_adapter_writeMessage(vscp_TxMessage const * const msg)
         TxMessage.RTR = CAN_RTR_DATA;
         TxMessage.DLC = msg->dataNum;
         
-        for (DataCounter = 0; DataCounter < TxMessage.DLC; TxMessage.DLC++)
+        for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
         {
            TxMessage.Data[DataCounter] = msg->data[DataCounter];        
         }

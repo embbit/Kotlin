@@ -190,13 +190,11 @@ void taskVSCP_LED_worker(void const * argument)
 {
   /* USER CODE BEGIN taskVSCP_LED_worker */
   VSCP_LAMP_STATE state;
-  TickType_t Period = portMAX_DELAY;   
+  TickType_t Period = portMAX_DELAY ;   
     
   /* Infinite loop */
   for(;;)
   {
-      if ( 0 != queueVSCP_LED_taskHandle )
-      {
          xQueueReceive( queueVSCP_LED_taskHandle, &( state ), Period );
          switch (state)
          {
@@ -218,9 +216,7 @@ void taskVSCP_LED_worker(void const * argument)
                  break;
              default:
                  break;
-         
-         }         
-      }
+       }
   }
   /* USER CODE END taskVSCP_LED_worker */
 }
