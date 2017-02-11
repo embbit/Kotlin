@@ -28,23 +28,18 @@
     DESCRIPTION
 *******************************************************************************/
 /**
-@brief  VSCP actions
-@file   vscp_action.h
+@brief  VSCP configuration overwrite
+@file   vscp_config_overwrite.h
 @author Andreas Merkle, http://www.blue-andi.de
 
 @section desc Description
-This module contains the user specific decision matrix (standard, extension
-and next generation) actions.
+This module contains the configuration preferred by the user. It overwrites the
+default configuration in vscp_config.h
 
 *******************************************************************************/
-/** @defgroup vscp_action VSCP actions
- * This module contains the user specific decision matrix (standard, extension
- * and next generation) actions.
- *
- * Supported compile switches:
- * - VSCP_CONFIG_ENABLE_DM
- * - VSCP_CONFIG_ENABLE_DM_NEXT_GENERATION
- *
+/** @defgroup vscp_config_overwrite VSCP configuration overwrite
+ * This module contains the configuration preferred by the user. It overwrites the
+ * default configuration in vscp_config.h
  * @{
  */
 
@@ -53,30 +48,83 @@ and next generation) actions.
  * a correct module description.
  */
 
-#ifndef __VSCP_ACTION_H__
-#define __VSCP_ACTION_H__
+#ifndef __VSCP_CONFIG_OVERWRITE_H__
+#define __VSCP_CONFIG_OVERWRITE_H__
 
 /*******************************************************************************
     INCLUDES
 *******************************************************************************/
-#include <inttypes.h>
-#include "vscp_config.h"
-#include "vscp_types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ENABLE_DM ) || VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ENABLE_DM_NEXT_GENERATION )
-
 /*******************************************************************************
     COMPILER SWITCHES
 *******************************************************************************/
 
+/* ---------- Define here your preferred configuration setup. ---------- */
+
+
+#define VSCP_CONFIG_ENABLE_LOGGER               VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_SILENT_NODE                 VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_HARD_CODED_NODE             VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_HEARTBEAT_SUPPORT_SEGMENT   VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_HEARTBEAT_NODE              VSCP_CONFIG_BASE_ENABLED
+
+#define VSCP_CONFIG_IDLE_CALLOUT                VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_ERROR_CALLOUT               VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_BOOT_LOADER_SUPPORTED       VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_ENABLE_DM                   VSCP_CONFIG_BASE_ENABLED
+
+#define VSCP_CONFIG_DM_PAGED_FEATURE            VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_ENABLE_DM_EXTENSION         VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_ENABLE_DM_NEXT_GENERATION   VSCP_CONFIG_BASE_DISABLED
+
+#define VSCP_CONFIG_ENABLE_LOOPBACK             VSCP_CONFIG_BASE_DISABLED
+
+
+
 /*******************************************************************************
     CONSTANTS
 *******************************************************************************/
+
+/* ---------- Define here your preferred configuration setup. ---------- */
+
+
+
+#define VSCP_CONFIG_NODE_SEGMENT_INIT_TIMEOUT   ((uint16_t)5000)
+
+#define VSCP_CONFIG_PROBE_ACK_TIMEOUT           ((uint16_t)2000)
+
+#define VSCP_CONFIG_MULTI_MSG_TIMEOUT           ((uint16_t)1000)
+
+#define VSCP_CONFIG_HEARTBEAT_NODE_PERIOD       ((uint16_t)30000)
+
+#define VSCP_CONFIG_DM_PAGE                     1
+
+#define VSCP_CONFIG_DM_OFFSET                   0
+
+#define VSCP_CONFIG_DM_ROWS                     10
+
+#define VSCP_CONFIG_DM_NG_PAGE                  2
+
+#define VSCP_CONFIG_DM_NG_RULE_SET_SIZE         80
+
+#define VSCP_CONFIG_LOOPBACK_STORAGE_NUM        4
+
+
 
 /*******************************************************************************
     MACROS
@@ -94,26 +142,10 @@ extern "C"
     FUNCTIONS
 *******************************************************************************/
 
-/**
- * This function initializes the module.
- */
-extern void vscp_action_init(void);
-
-/**
- * This function executes a action with the given parameter.
- *
- * @param[in]   action  Action id
- * @param[in]   par     Action parameter
- * @param[in]   msg     Received VSCP message which triggered the action
- */
-extern void vscp_action_execute(uint8_t action, uint8_t par, vscp_RxMessage const * const msg);
-
-#endif  /* VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ENABLE_DM ) || VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ENABLE_DM_NEXT_GENERATION ) */
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* __VSCP_ACTION_H__ */
+#endif  /* __VSCP_CONFIG_OVERWRITE_H__ */
 
 /** @} */

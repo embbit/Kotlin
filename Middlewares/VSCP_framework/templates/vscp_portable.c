@@ -1,6 +1,6 @@
 /* The MIT License (MIT)
  *
- * Copyright (c) 2014 - 2016, Andreas Merkle
+ * Copyright (c) 2014 - 2017, Andreas Merkle
  * http://www.blue-andi.de
  * vscp@blue-andi.de
  *
@@ -42,8 +42,6 @@
 *******************************************************************************/
 #include "vscp_portable.h"
 #include "vscp_core.h"
-#include "cmsis_os.h"
-//#include "queue.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -72,7 +70,7 @@
 /*******************************************************************************
     GLOBAL VARIABLES
 *******************************************************************************/
-extern osMessageQId queueVSCP_LED_taskHandle;
+
 /*******************************************************************************
     GLOBAL FUNCTIONS
 *******************************************************************************/
@@ -104,9 +102,26 @@ extern void vscp_portable_restoreFactoryDefaultSettings(void)
  */
 extern void vscp_portable_setLampState(VSCP_LAMP_STATE state)
 {
-    if( 0 != queueVSCP_LED_taskHandle )
+    switch(state)
     {
-       xQueueSendToBack( queueVSCP_LED_taskHandle, &state, 0);
+    case VSCP_LAMP_STATE_OFF:
+        /* Implement your code here ... */
+        break;
+
+    case VSCP_LAMP_STATE_ON:
+        /* Implement your code here ... */
+        break;
+
+    case VSCP_LAMP_STATE_BLINK_SLOW:
+        /* Implement your code here ... */
+        break;
+
+    case VSCP_LAMP_STATE_BLINK_FAST:
+        /* Implement your code here ... */
+        break;
+
+    default:
+        break;
     }
 
     return;

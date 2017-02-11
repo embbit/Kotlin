@@ -28,19 +28,22 @@
     DESCRIPTION
 *******************************************************************************/
 /**
-@brief  VSCP timer layer
-@file   vscp_timer.c
+@brief  VSCP portable support package
+@file   vscp_portable.c
 @author Andreas Merkle, http://www.blue-andi.de
 
 @section desc Description
-@see vscp_timer.h
+@see vscp_portable.h
 
 *******************************************************************************/
 
 /*******************************************************************************
     INCLUDES
 *******************************************************************************/
-#include "vscp_timer.h"
+#include "vscp_portable.h"
+#include "vscp_core.h"
+#include "cmsis_os.h"
+//#include "queue.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -69,15 +72,15 @@
 /*******************************************************************************
     GLOBAL VARIABLES
 *******************************************************************************/
-
+extern osMessageQId queueVSCP_LED_taskHandle;
 /*******************************************************************************
     GLOBAL FUNCTIONS
 *******************************************************************************/
 
 /**
- * This function initializes the timer driver.
+ * This function initializes this module.
  */
-extern void vscp_timer_init(void)
+extern void vscp_portable_init(void)
 {
     /* Implement your code here ... */
 
@@ -85,29 +88,9 @@ extern void vscp_timer_init(void)
 }
 
 /**
- * This function creates a timer and returns its id.
- *
- * @return  Timer id
- * @retval  255     No timer resource available
- * @retval  0-254   Valid timer id
+ * Restore the application specific factory default settings.
  */
-extern uint8_t  vscp_timer_create(void)
-{
-    uint8_t timerId = 0xFF;
-
-    /* Implement your code here ... */
-
-    return timerId;
-}
-
-/**
- * This function starts the timer of the given id.
- * If the timer is already running, it will be restart with the new value.
- *
- * @param[in]   id      Timer id
- * @param[in]   value   Time in ms
- */
-extern void vscp_timer_start(uint8_t id, uint16_t value)
+extern void vscp_portable_restoreFactoryDefaultSettings(void)
 {
     /* Implement your code here ... */
 
@@ -115,40 +98,97 @@ extern void vscp_timer_start(uint8_t id, uint16_t value)
 }
 
 /**
- * This function stops a timer with the given id.
+ * This function set the current lamp state.
  *
- * @param[in]   id  Timer id
+ * @param[in]   state   Lamp state to set
  */
-extern void vscp_timer_stop(uint8_t id)
+extern void vscp_portable_setLampState(VSCP_LAMP_STATE state)
+{
+    if( 0 != queueVSCP_LED_taskHandle )
+    {
+       xQueueSendToBack( queueVSCP_LED_taskHandle, &state, 0);
+    }
+
+    return;
+}
+
+#if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_IDLE_CALLOUT )
+
+/**
+ * If VSCP stops its work and enters idle state, this function will be called.
+ */
+extern void vscp_portable_idleStateEntered(void)
 {
     /* Implement your code here ... */
 
     return;
 }
 
+#endif  /* VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_IDLE_CALLOUT ) */
+
+#if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ERROR_CALLOUT )
+
 /**
- * This function get the status of a timer.
- *
- * @param[in]   id  Timer id
- * @return  Timer status
- * @retval  FALSE   Timer is stopped or timeout
- * @retval  TRUE    Timer is running
+ * If VSCP stops its work and enters error state, this function will be called.
  */
-extern BOOL vscp_timer_getStatus(uint8_t id)
+extern void vscp_portable_errorStateEntered(void)
 {
-    BOOL    status  = FALSE;
+    /* Implement your code here ... */
+
+    return;
+}
+
+#endif  /* VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ERROR_CALLOUT ) */
+
+/**
+ * This function requests a reset.
+ * It requests it and doesn't expect that it will be immediately.
+ * Because the application needs time to change to a safe state before.
+ */
+extern void vscp_portable_resetRequest(void)
+{
+    /* Implement your code here ... */
+
+    return;
+}
+
+#if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_BOOT_LOADER_SUPPORTED )
+
+/**
+ * This function returns the supported boot loader algorithm.
+ *
+ * @return  Boot loader algorithm
+ * @retval  0xFF    No boot loader supported
+ */
+extern uint8_t  vscp_portable_getBootLoaderAlgorithm(void)
+{
+    uint8_t algorithm   = 0xFF;
 
     /* Implement your code here ... */
 
-    return status;
+    return algorithm;
 }
 
 /**
- * This function process all timers and has to be called cyclic.
- *
- * @param[in]   period  Period in ticks of calling this function.
+ * This function requests a jump to the bootloader.
+ * It requests it and doesn't expect that it will be immediately.
+ * Because the application needs time to change to a safe state before.
  */
-extern void vscp_timer_process(uint16_t period)
+extern void vscp_portable_bootLoaderRequest(void)
+{
+    /* Implement your code here ... */
+
+    return;
+}
+
+#endif  /* VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_BOOT_LOADER_SUPPORTED ) */
+
+/**
+ * This function provides received VSCP events, except the PROTOCOL class.
+ *
+ * @param[out]  msg Message
+ */
+extern void vscp_portable_provideEvent(vscp_RxMessage const * const msg)
 {
     /* Implement your code here ... */
 

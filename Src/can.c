@@ -5,7 +5,7 @@
   *                      of the CAN instances.
   ******************************************************************************
   *
-  * Copyright (c) 2016 STMicroelectronics International N.V. 
+  * Copyright (c) 2017 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -48,7 +48,8 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
-
+static CanTxMsgTypeDef can1TxMessage;
+static CanRxMsgTypeDef can1RxMessage;
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan1;
@@ -83,7 +84,7 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
   if(canHandle->Instance==CAN1)
   {
   /* USER CODE BEGIN CAN1_MspInit 0 */
-
+    CAN_FilterConfTypeDef canFilterConfig;
   /* USER CODE END CAN1_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_CAN1_CLK_ENABLE();
@@ -110,7 +111,20 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
     HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
   /* USER CODE BEGIN CAN1_MspInit 1 */
+    hcan1.pTxMsg = &can1TxMessage;
+    hcan1.pRxMsg = &can1RxMessage;
 
+    canFilterConfig.FilterNumber = 0;
+    canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    canFilterConfig.FilterIdHigh = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0000;
+    canFilterConfig.FilterMaskIdHigh = 0x0000 << 5;
+    canFilterConfig.FilterMaskIdLow = 0x0000;
+    canFilterConfig.FilterFIFOAssignment = 0;
+    canFilterConfig.FilterActivation = ENABLE;
+    canFilterConfig.BankNumber = 1;
+    HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
   /* USER CODE END CAN1_MspInit 1 */
   }
 }

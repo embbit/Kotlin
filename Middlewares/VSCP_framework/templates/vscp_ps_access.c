@@ -1,6 +1,6 @@
 /* The MIT License (MIT)
  *
- * Copyright (c) 2014 - 2016, Andreas Merkle
+ * Copyright (c) 2014 - 2017, Andreas Merkle
  * http://www.blue-andi.de
  * vscp@blue-andi.de
  *
@@ -41,7 +41,6 @@
     INCLUDES
 *******************************************************************************/
 #include "vscp_ps_access.h"
-#include "eeprom.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -82,7 +81,9 @@
  */
 extern void vscp_ps_access_init(void)
 {
-    EE_Init();
+    /* Implement your code here ... */
+
+    return;
 }
 
 /**
@@ -93,11 +94,11 @@ extern void vscp_ps_access_init(void)
  */
 extern uint8_t  vscp_ps_access_read8(uint16_t addr)
 {
-    uint16_t data    = 0;
+    uint8_t data    = 0;
 
-    EE_ReadVariable(addr, &data);
+    /* Implement your code here ... */
 
-    return (uint8_t)data;
+    return data;
 }
 
 /**
@@ -108,7 +109,7 @@ extern uint8_t  vscp_ps_access_read8(uint16_t addr)
  */
 extern void vscp_ps_access_write8(uint16_t addr, uint8_t value)
 {
-    EE_WriteVariable(addr, (uint16_t)value);
+    /* Implement your code here ... */
 
     return;
 }

@@ -28,19 +28,20 @@
     DESCRIPTION
 *******************************************************************************/
 /**
-@brief  VSCP timer layer
-@file   vscp_timer.c
+@brief  VSCP persistent memory access driver
+@file   vscp_ps_access.c
 @author Andreas Merkle, http://www.blue-andi.de
 
 @section desc Description
-@see vscp_timer.h
+@see vscp_ps_access.h
 
 *******************************************************************************/
 
 /*******************************************************************************
     INCLUDES
 *******************************************************************************/
-#include "vscp_timer.h"
+#include "vscp_ps_access.h"
+#include "eeprom.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -75,82 +76,39 @@
 *******************************************************************************/
 
 /**
- * This function initializes the timer driver.
+ * This function initializes the persistent memory access driver.
+ * It doesn't write anything in the persistent memory! It only initializes
+ * the module that read/write access is possible.
  */
-extern void vscp_timer_init(void)
+extern void vscp_ps_access_init(void)
 {
-    /* Implement your code here ... */
-
-    return;
+    EE_Init();
 }
 
 /**
- * This function creates a timer and returns its id.
+ * Read a single byte from the persistent memory.
  *
- * @return  Timer id
- * @retval  255     No timer resource available
- * @retval  0-254   Valid timer id
+ * @param[in]   addr    Address in persistent memory
+ * @return  Value
  */
-extern uint8_t  vscp_timer_create(void)
+extern uint8_t  vscp_ps_access_read8(uint16_t addr)
 {
-    uint8_t timerId = 0xFF;
+    uint16_t data    = 0;
 
-    /* Implement your code here ... */
+    EE_ReadVariable(addr, &data);
 
-    return timerId;
+    return (uint8_t)data;
 }
 
 /**
- * This function starts the timer of the given id.
- * If the timer is already running, it will be restart with the new value.
+ * Write a single byte to the persistent memory.
  *
- * @param[in]   id      Timer id
- * @param[in]   value   Time in ms
+ * @param[in]   addr    Address in persistent memory
+ * @param[in]   value   Value to write
  */
-extern void vscp_timer_start(uint8_t id, uint16_t value)
+extern void vscp_ps_access_write8(uint16_t addr, uint8_t value)
 {
-    /* Implement your code here ... */
-
-    return;
-}
-
-/**
- * This function stops a timer with the given id.
- *
- * @param[in]   id  Timer id
- */
-extern void vscp_timer_stop(uint8_t id)
-{
-    /* Implement your code here ... */
-
-    return;
-}
-
-/**
- * This function get the status of a timer.
- *
- * @param[in]   id  Timer id
- * @return  Timer status
- * @retval  FALSE   Timer is stopped or timeout
- * @retval  TRUE    Timer is running
- */
-extern BOOL vscp_timer_getStatus(uint8_t id)
-{
-    BOOL    status  = FALSE;
-
-    /* Implement your code here ... */
-
-    return status;
-}
-
-/**
- * This function process all timers and has to be called cyclic.
- *
- * @param[in]   period  Period in ticks of calling this function.
- */
-extern void vscp_timer_process(uint16_t period)
-{
-    /* Implement your code here ... */
+    EE_WriteVariable(addr, (uint16_t)value);
 
     return;
 }
@@ -158,4 +116,3 @@ extern void vscp_timer_process(uint16_t period)
 /*******************************************************************************
     LOCAL FUNCTIONS
 *******************************************************************************/
-

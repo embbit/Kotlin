@@ -55,7 +55,7 @@
 #include "vscp_util.h"
 #include "vscp_action.h"
 #include "vscp_logger.h"
-
+#include "debug.h"
 /*******************************************************************************
     COMPILER SWITCHES
 *******************************************************************************/
@@ -497,6 +497,7 @@ extern void vscp_core_process(void)
     default:
         /* This should never happen. */
         vscp_core_state = STATE_ERROR;
+        DbgLog("VSCP change state to STATE_ERROR");
         break;
     }
 
@@ -760,6 +761,7 @@ static inline void  vscp_core_changeToStateInit(void)
 
         vscp_core_state     = STATE_INIT;
         vscp_core_initState = INIT_STATE_PROBE_MASTER;
+        DbgLog("VSCP change state to STATE_INIT");
 
         /* Clear nickname id */
         vscp_core_writeNicknameId(VSCP_NICKNAME_NOT_INIT);
@@ -929,7 +931,7 @@ static inline void  vscp_core_stateInit(void)
 static inline void  vscp_core_changeToStatePreActive(void)
 {
     vscp_core_state = STATE_PREACTIVE;
-
+    DbgLog("VSCP change state to STATE_PREACTIVE");
     return;
 }
 
@@ -1001,7 +1003,7 @@ static inline void  vscp_core_changeToStateActive(void)
         vscp_portable_setLampState(VSCP_LAMP_STATE_ON);
 
         vscp_core_state = STATE_ACTIVE;
-
+        DbgLog("VSCP change state to STATE_ACTIVE");
         txMessage.vscpClass = VSCP_CLASS_L1_PROTOCOL;
         txMessage.vscpType  = VSCP_TYPE_PROTOCOL_NEW_NODE_ONLINE;
         txMessage.priority  = VSCP_PRIORITY_0_HIGH;
@@ -1107,8 +1109,9 @@ static inline void  vscp_core_changeToStateIdle(void)
     {
         /* Disable lamp and show the user that the node is offline. */
         vscp_portable_setLampState(VSCP_LAMP_STATE_OFF);
-
+        
         vscp_core_state = STATE_IDLE;
+        DbgLog("VSCP change state to STATE_IDLE");
 
 #if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_IDLE_CALLOUT )
 
@@ -1144,7 +1147,7 @@ static inline void  vscp_core_changeToStateReset(uint8_t timeout)
         vscp_portable_setLampState(VSCP_LAMP_STATE_OFF);
 
         vscp_core_state = STATE_RESET;
-
+        DbgLog("VSCP change state to STATE_RESET");
         vscp_core_secCnt = timeout;
 
         /* Is a timer needed? */
@@ -1209,7 +1212,7 @@ static inline void  vscp_core_changeToStateError(void)
         vscp_portable_setLampState(VSCP_LAMP_STATE_OFF);
 
         vscp_core_state = STATE_ERROR;
-
+        DbgLog("VSCP change state to STATE_ERROR");
 #if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_ERROR_CALLOUT )
 
         /* Notify the application. */

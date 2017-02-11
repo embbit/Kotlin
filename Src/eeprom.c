@@ -95,6 +95,7 @@ uint16_t EE_Init(void)
   s_eraseinit.PageAddress = PAGE0_ID;
   s_eraseinit.NbPages     = 1;
   
+ 
   /* Check for invalid header states and repair if necessary */
   switch (pagestatus0)
   {

@@ -1,6 +1,6 @@
 /* The MIT License (MIT)
  *
- * Copyright (c) 2014 - 2016, Andreas Merkle
+ * Copyright (c) 2014 - 2017, Andreas Merkle
  * http://www.blue-andi.de
  * vscp@blue-andi.de
  *
@@ -41,7 +41,6 @@
     INCLUDES
 *******************************************************************************/
 #include "vscp_tp_adapter.h"
-#include "can.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -66,8 +65,7 @@
 /*******************************************************************************
     LOCAL VARIABLES
 *******************************************************************************/
-static CanTxMsgTypeDef TxMessage;
-static CanRxMsgTypeDef RxMessage;
+
 /*******************************************************************************
     GLOBAL VARIABLES
 *******************************************************************************/
@@ -97,26 +95,10 @@ extern void vscp_tp_adapter_init(void)
 extern BOOL vscp_tp_adapter_readMessage(vscp_RxMessage * const msg)
 {
     BOOL    status  = FALSE;
-    uint8_t DataCounter;    
 
     if (NULL != msg)
     {
-        hcan1.pRxMsg = &RxMessage;
-        if (HAL_OK == HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0))
-        {
-           msg->priority = (VSCP_PRIORITY)((RxMessage.ExtId >> 26) & 0x07);
-           msg->hardCoded = (BOOL)((RxMessage.ExtId >> 25) & 0x01);
-           msg->vscpClass = (uint16_t)((RxMessage.ExtId >> 16) & 0x01FF);
-           msg->vscpType = (uint8_t)((RxMessage.ExtId >> 8) & 0xFF);     
-           msg->oAddr = (uint8_t)(RxMessage.ExtId & 0xFF);           
-           msg->dataNum = RxMessage.DLC;
-          
-           for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
-           {
-               msg->data[DataCounter] = RxMessage.Data[DataCounter];        
-           }           
-           status  = TRUE;           
-        }         
+        /* Implement your code here ... */
 
     }
 
@@ -134,31 +116,14 @@ extern BOOL vscp_tp_adapter_readMessage(vscp_RxMessage * const msg)
 extern BOOL vscp_tp_adapter_writeMessage(vscp_TxMessage const * const msg)
 {
     BOOL    status  = FALSE;
-    uint8_t DataCounter;
 
     if ((NULL != msg) &&                        /* Message shall exists */
         (VSCP_L1_DATA_SIZE >= msg->dataNum))    /* Number of data bytes is limited */
     {
-        TxMessage.ExtId = (msg->priority << 26)\
-                        + (msg->hardCoded << 25)\
-                        + (msg->vscpClass << 16)\
-                        + (msg->vscpType << 8)\
-                        + (msg->oAddr);
-        TxMessage.IDE = CAN_ID_EXT;
-        TxMessage.RTR = CAN_RTR_DATA;
-        TxMessage.DLC = msg->dataNum;
-        
-        for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
-        {
-           TxMessage.Data[DataCounter] = msg->data[DataCounter];        
-        }
-        
-        hcan1.pTxMsg = &TxMessage;
-        if (HAL_OK == HAL_CAN_Transmit_IT(&hcan1))
-        {
-           status = TRUE;
-        }
+        /* Implement your code here ... */
+
     }
+
     return status;
 }
 

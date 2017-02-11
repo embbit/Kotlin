@@ -4,7 +4,7 @@
   * Description        : This file contains the common defines of the application
   ******************************************************************************
   *
-  * Copyright (c) 2016 STMicroelectronics International N.V. 
+  * Copyright (c) 2017 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -55,18 +55,12 @@
 #define VSCP_LED_PERIOD_FAST 100
 #define VSCP_LED_PERIOD_SLOW 800
 
-#define S2_IN_Pin GPIO_PIN_1
-#define S2_IN_GPIO_Port GPIOC
-#define HS_LS_IN_Pin GPIO_PIN_2
-#define HS_LS_IN_GPIO_Port GPIOC
 #define VSCP_LED_Pin GPIO_PIN_12
 #define VSCP_LED_GPIO_Port GPIOB
-#define nCAN2_STB_Pin GPIO_PIN_14
-#define nCAN2_STB_GPIO_Port GPIOB
-#define CAN2_ERR_IN_Pin GPIO_PIN_15
-#define CAN2_ERR_IN_GPIO_Port GPIOB
-#define CAN_RS_Pin GPIO_PIN_7
-#define CAN_RS_GPIO_Port GPIOB
+#define VSCP_BTN_Pin GPIO_PIN_14
+#define VSCP_BTN_GPIO_Port GPIOB
+#define CAN1_STB_Pin GPIO_PIN_7
+#define CAN1_STB_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
