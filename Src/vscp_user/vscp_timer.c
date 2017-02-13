@@ -28,20 +28,22 @@
     DESCRIPTION
 *******************************************************************************/
 /**
-@brief  VSCP transport layer adapter
-@file   vscp_tp_adapter.c
+@brief  VSCP timer layer
+@file   vscp_timer.c
 @author Andreas Merkle, http://www.blue-andi.de
 
 @section desc Description
-@see vscp_tp_adapter.h
+@see vscp_timer.h
 
 *******************************************************************************/
 
 /*******************************************************************************
     INCLUDES
 *******************************************************************************/
-#include "vscp_tp_adapter.h"
-#include "can.h"
+#include "vscp_timer.h"
+#include "vscp_util.h"
+#include "vscp_config.h"
+#include <string.h>
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -51,6 +53,18 @@
     CONSTANTS
 *******************************************************************************/
 
+#if VSCP_CONFIG_BASE_IS_ENABLED( VSCP_CONFIG_HEARTBEAT_NODE )
+
+/** Number of provided timers */
+#define VSCP_TIMER_NUM  4
+
+#else   /* VSCP_CONFIG_BASE_IS_DISABLED( VSCP_CONFIG_HEARTBEAT_NODE ) */
+
+/** Number of provided timers */
+#define VSCP_TIMER_NUM  3
+
+#endif  /* VSCP_CONFIG_BASE_IS_DISABLED( VSCP_CONFIG_HEARTBEAT_NODE ) */
+
 /*******************************************************************************
     MACROS
 *******************************************************************************/
@@ -59,6 +73,14 @@
     TYPES AND STRUCTURES
 *******************************************************************************/
 
+/** This type defines a timer context with all its internal parameters. */
+typedef struct
+{
+    uint8_t     id;     /**< Timer id (0xFF means this timer is available) */
+    uint16_t    value;  /**< Timer counter value */
+
+} vscp_timer_Timer;
+
 /*******************************************************************************
     PROTOTYPES
 *******************************************************************************/
@@ -66,8 +88,10 @@
 /*******************************************************************************
     LOCAL VARIABLES
 *******************************************************************************/
-static CanTxMsgTypeDef TxMessage;
-static CanRxMsgTypeDef RxMessage;
+
+/** Timers */
+static vscp_timer_Timer vscp_timer_context[VSCP_TIMER_NUM];
+
 /*******************************************************************************
     GLOBAL VARIABLES
 *******************************************************************************/
@@ -77,106 +101,134 @@ static CanRxMsgTypeDef RxMessage;
 *******************************************************************************/
 
 /**
- * This function initializes the transport layer.
+ * This function initializes the timer driver.
  */
-extern void vscp_tp_adapter_init(void)
+extern void vscp_timer_init(void)
 {
-    /* Implement your code here ... */
+    uint8_t index   = 0;
+
+    /* Reset all timers */
+    memset(vscp_timer_context, 0, sizeof(vscp_timer_context));
+
+    for(index = 0; index < VSCP_TIMER_NUM; ++index)
+    {
+        vscp_timer_context[index].id = 0xFF;
+    }
 
     return;
 }
 
 /**
- * This function reads a message from the transport layer.
+ * This function creates a timer and returns its id.
  *
- * @param[out]  msg Message storage
- * @return  Message received or not
- * @retval  FALSE   No message received
- * @retval  TRUE    Message received
+ * @return  Timer id
+ * @retval  255     No timer resource available
+ * @retval  0-254   Valid timer id
  */
-extern BOOL vscp_tp_adapter_readMessage(vscp_RxMessage * const msg)
+extern uint8_t  vscp_timer_create(void)
+{
+    uint8_t timerId = 0xFF;
+    uint8_t index   = 0;
+
+    /* Search for an available timer */
+    for(index = 0; index < VSCP_TIMER_NUM; ++index)
+    {
+        /* Is the timer available? */
+        if (0xFF == vscp_timer_context[index].id)
+        {
+            /* Mark the timer as used */
+            vscp_timer_context[index].id    = index;
+            timerId                         = vscp_timer_context[index].id;
+
+            break;
+        }
+    }
+
+    return timerId;
+}
+
+/**
+ * This function starts the timer of the given id.
+ * If the timer is already running, it will be restart with the new value.
+ *
+ * @param[in]   id      Timer id
+ * @param[in]   value   Time in ms
+ */
+extern void vscp_timer_start(uint8_t id, uint16_t value)
+{
+    if (VSCP_UTIL_ARRAY_NUM(vscp_timer_context) > id)
+    {
+        vscp_timer_context[id].value = value;
+    }
+
+    return;
+}
+
+/**
+ * This function stops a timer with the given id.
+ *
+ * @param[in]   id  Timer id
+ */
+extern void vscp_timer_stop(uint8_t id)
+{
+    if (VSCP_UTIL_ARRAY_NUM(vscp_timer_context) > id)
+    {
+        vscp_timer_context[id].value = 0;
+    }
+
+    return;
+}
+
+/**
+ * This function get the status of a timer.
+ *
+ * @param[in]   id  Timer id
+ * @return  Timer status
+ * @retval  FALSE   Timer is stopped or timeout
+ * @retval  TRUE    Timer is running
+ */
+extern BOOL vscp_timer_getStatus(uint8_t id)
 {
     BOOL    status  = FALSE;
-    uint8_t DataCounter;    
 
-    if (NULL != msg)
+    if (VSCP_UTIL_ARRAY_NUM(vscp_timer_context) > id)
     {
-        hcan1.pRxMsg = &RxMessage;
-        if (__HAL_CAN_MSG_PENDING(&hcan1, CAN_FILTER_FIFO0))
+        if (0 < vscp_timer_context[id].value)
         {
-           HAL_CAN_Receive(&hcan1,CAN_FILTER_FIFO0, 10);
-           msg->priority = (VSCP_PRIORITY)((RxMessage.ExtId >> 26) & 0x07);
-           msg->hardCoded = (BOOL)((RxMessage.ExtId >> 25) & 0x01);
-           msg->vscpClass = (uint16_t)((RxMessage.ExtId >> 16) & 0x01FF);
-           msg->vscpType = (uint8_t)((RxMessage.ExtId >> 8) & 0xFF);     
-           msg->oAddr = (uint8_t)(RxMessage.ExtId & 0xFF);           
-           msg->dataNum = RxMessage.DLC;
-          
-           for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
-           {
-               msg->data[DataCounter] = RxMessage.Data[DataCounter];        
-           }           
-           status  = TRUE;  
-        
+            status = TRUE;
         }
-       /* if (HAL_OK == HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0))
-        {
-           msg->priority = (VSCP_PRIORITY)((RxMessage.ExtId >> 26) & 0x07);
-           msg->hardCoded = (BOOL)((RxMessage.ExtId >> 25) & 0x01);
-           msg->vscpClass = (uint16_t)((RxMessage.ExtId >> 16) & 0x01FF);
-           msg->vscpType = (uint8_t)((RxMessage.ExtId >> 8) & 0xFF);     
-           msg->oAddr = (uint8_t)(RxMessage.ExtId & 0xFF);           
-           msg->dataNum = RxMessage.DLC;
-          
-           for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
-           {
-               msg->data[DataCounter] = RxMessage.Data[DataCounter];        
-           }           
-           status  = TRUE;           
-        }   */      
-
     }
 
     return status;
 }
 
 /**
- * This function writes a message to the transport layer.
+ * This function process all timers and has to be called cyclic.
  *
- * @param[in]   msg Message storage
- * @return  Message sent or not
- * @retval  FALSE   Couldn't send message
- * @retval  TRUE    Message successful sent
+ * @param[in]   period  Period in ticks of calling this function.
  */
-extern BOOL vscp_tp_adapter_writeMessage(vscp_TxMessage const * const msg)
+extern void vscp_timer_process(uint16_t period)
 {
-    BOOL    status  = FALSE;
-    uint8_t DataCounter;
+    uint8_t index   = 0;
 
-    if ((NULL != msg) &&                        /* Message shall exists */
-        (VSCP_L1_DATA_SIZE >= msg->dataNum))    /* Number of data bytes is limited */
+    /* Process all timers */
+    for(index = 0; index < VSCP_TIMER_NUM; ++index)
     {
-        TxMessage.ExtId = (msg->priority << 26)\
-                        + (msg->hardCoded << 25)\
-                        + (msg->vscpClass << 16)\
-                        + (msg->vscpType << 8)\
-                        + (msg->oAddr);
-        TxMessage.IDE = CAN_ID_EXT;
-        TxMessage.RTR = CAN_RTR_DATA;
-        TxMessage.DLC = msg->dataNum;
-        
-        for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
+        /* Is the timer enabled? */
+        if (0xFF != vscp_timer_context[index].id)
         {
-           TxMessage.Data[DataCounter] = msg->data[DataCounter];        
-        }
-        
-        hcan1.pTxMsg = &TxMessage;
-        if (HAL_OK == HAL_CAN_Transmit_IT(&hcan1))
-        {
-           status = TRUE;
+            if (period <= vscp_timer_context[index].value)
+            {
+                vscp_timer_context[index].value -= period;
+            }
+            else
+            {
+                vscp_timer_context[index].value = 0;
+            }
         }
     }
-    return status;
+
+    return;
 }
 
 /*******************************************************************************

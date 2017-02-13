@@ -365,7 +365,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F105xC</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                       ../Drivers/STM32F1xx_HAL_Driver/Inc;                       ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;                       ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3;                       ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;                       ../Middlewares/Third_Party/FreeRTOS/Source/include;                       ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;                       ../Drivers/CMSIS/Include;                       ../Middlewares/VSCP_framework;                       ../Middlewares/VSCP_framework/templates</IncludePath>
+              <IncludePath>../Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Drivers/CMSIS/Include;../Middlewares/VSCP_framework;../Src/vscp_user</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -456,7 +456,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Middlewares/VSCP_framework</GroupName>
+          <GroupName>Middlewares/vscp_framework</GroupName>
           <Files>
             <File>
               <FileName>vscp_core.c</FileName>
@@ -514,26 +514,6 @@
               <FilePath>..\Middlewares\VSCP_framework\templates\vscp_app_reg.c</FilePath>
             </File>
             <File>
-              <FileName>vscp_portable.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\VSCP_framework\templates\vscp_portable.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_ps_access.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\VSCP_framework\templates\vscp_ps_access.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\VSCP_framework\templates\vscp_timer.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_tp_adapter.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\VSCP_framework\templates\vscp_tp_adapter.c</FilePath>
-            </File>
-            <File>
               <FileName>vscp_alarm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middlewares\VSCP_framework\events\vscp_alarm.c</FilePath>
@@ -577,6 +557,31 @@
               <FileName>vscp_weather_forecast.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middlewares\VSCP_framework\events\vscp_weather_forecast.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Application/vscp_user</GroupName>
+          <Files>
+            <File>
+              <FileName>vscp_portable.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_portable.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_ps_access.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_ps_access.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_tp_adapter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_tp_adapter.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_timer.c</FilePath>
             </File>
           </Files>
         </Group>
