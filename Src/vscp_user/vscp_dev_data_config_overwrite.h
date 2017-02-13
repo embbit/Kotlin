@@ -55,6 +55,7 @@ user. It overwrites the default configuration in vscp_dev_data_config.h
     INCLUDES
 *******************************************************************************/
 #include <stdint.h>
+#include "stm32f105xc.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -95,9 +96,23 @@ extern "C"
 
 /* ---------- Define here your preferred configuration setup. ---------- */
 
-/*
+#define UNIQUE_DEVICE_ID_ADDR  ((uint32_t) 0x1FFFF7E8)
 
-#define VSCP_DEV_DATA_CONFIG_NODE_GUID                      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define VSCP_DEV_DATA_CONFIG_NODE_GUID                      { 0xFD, 0x02, \
+                                                              (uint8_t)((*(uint32_t*)DBGMCU_BASE)&DBGMCU_IDCODE_DEV_ID)>>8, \
+                                                              (uint8_t)((*(uint32_t*)DBGMCU_BASE)&DBGMCU_IDCODE_DEV_ID), \
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 11),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 10),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 9),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 8),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 7),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 6),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 5),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 4),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 3),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 2),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 1),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 0)}
 
 #define VSCP_DEV_DATA_CONFIG_NODE_ZONE                      (0xff)
 
@@ -109,7 +124,7 @@ extern "C"
 
 #define VSCP_DEV_DATA_CONFIG_MANUFACTURER_SUB_DEVICE_ID     ((uint32_t)0x00000000)
 
-#define VSCP_DEV_DATA_CONFIG_MDF_URL                        "www.blue-andi.de/vscp/rb01.mdf"
+#define VSCP_DEV_DATA_CONFIG_MDF_URL                        "bit.eu5.org/kotlin.xml"
 
 #define VSCP_DEV_DATA_CONFIG_VERSION_MAJOR                  0
 
@@ -121,7 +136,7 @@ extern "C"
 
 #define VSCP_DEV_DATA_CONFIG_STANDARD_DEVICE_TYPE           ((uint32_t)0x00000000)
 
-*/
+
 
 /*******************************************************************************
     MACROS
