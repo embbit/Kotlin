@@ -50,8 +50,8 @@
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
-#define VSCP_CORE_PERIOD 100
-#define VSCP_TIMER_PERIOD 1000
+#define VSCP_CORE_PERIOD 10
+#define VSCP_TIMER_PERIOD 250
 #define VSCP_LED_PERIOD_FAST 100
 #define VSCP_LED_PERIOD_SLOW 800
 
