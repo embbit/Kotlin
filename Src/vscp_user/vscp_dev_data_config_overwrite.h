@@ -98,21 +98,22 @@ extern "C"
 
 #define UNIQUE_DEVICE_ID_ADDR  ((uint32_t) 0x1FFFF7E8)
 
-#define VSCP_DEV_DATA_CONFIG_NODE_GUID                      { 0xFD, 0x02, \
-                                                              (uint8_t)((*(uint32_t*)DBGMCU_BASE)&DBGMCU_IDCODE_DEV_ID)>>8, \
+
+#define VSCP_DEV_DATA_CONFIG_NODE_GUID                      { 0xFD, 0x02,\
+                                                              (uint8_t)(((*(uint32_t*)DBGMCU_BASE)&DBGMCU_IDCODE_DEV_ID)>>8), \
                                                               (uint8_t)((*(uint32_t*)DBGMCU_BASE)&DBGMCU_IDCODE_DEV_ID), \
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 11),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 10),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 9),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 8),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 7),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 6),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 5),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 4),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 3),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 2),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR),\
                                                               (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 1),\
-                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 0)}
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 2),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 3),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 4),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 5),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 6),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 7),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 8),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 9),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 10),\
+                                                              (uint8_t)*((uint8_t*)UNIQUE_DEVICE_ID_ADDR + 11)}
 
 #define VSCP_DEV_DATA_CONFIG_NODE_ZONE                      (0xff)
 

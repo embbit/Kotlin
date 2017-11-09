@@ -1241,6 +1241,7 @@ static inline void  vscp_core_stateError(void)
  */
 static inline void  vscp_core_handleProtocolClassType(void)
 {
+    DbgLog("vscpType: 0x%x", vscp_core_rxMessage.vscpType);
     switch(vscp_core_rxMessage.vscpType)
     {
     /* VSCP specification, chapter Segment Controller Heartbeat. */

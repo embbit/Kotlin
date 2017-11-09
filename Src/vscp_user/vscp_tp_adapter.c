@@ -42,6 +42,7 @@
 *******************************************************************************/
 #include "vscp_tp_adapter.h"
 #include "can.h"
+#include "debug.h"
 
 /*******************************************************************************
     COMPILER SWITCHES
@@ -112,7 +113,7 @@ extern BOOL vscp_tp_adapter_readMessage(vscp_RxMessage * const msg)
            msg->oAddr = (uint8_t)(RxMessage.ExtId & 0xFF);           
            msg->dataNum = RxMessage.DLC;
           
-           for (DataCounter = 0; DataCounter < TxMessage.DLC; DataCounter++)
+           for (DataCounter = 0; DataCounter < RxMessage.DLC; DataCounter++)
            {
                msg->data[DataCounter] = RxMessage.Data[DataCounter];        
            }           
@@ -173,6 +174,7 @@ extern BOOL vscp_tp_adapter_writeMessage(vscp_TxMessage const * const msg)
         hcan1.pTxMsg = &TxMessage;
         if (HAL_OK == HAL_CAN_Transmit_IT(&hcan1))
         {
+           DbgLog("Send vscpClass: 0x%x; vscpType: 0x%x; DataLen: %d", msg->vscpClass, msg->vscpType, msg->dataNum);
            status = TRUE;
         }
     }
