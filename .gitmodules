@@ -1,0 +1,6 @@
+[submodule "Middlewares/VSCP_framework"]
+	path = Middlewares/VSCP_framework
+	url = D:/HAUTOM_GIT/vscp-framework/
+[submodule "Middlewares/vscp-framework"]
+	path = Middlewares/vscp-framework
+	url = D:/HAUTOM_GIT/vscp-framework/
