@@ -3,8 +3,8 @@
  * Auto generated Run-Time-Environment Component Configuration File
  *      *** Do not modify ! ***
  *
- * Project: 'VSCP' 
- * Target:  'VSCP' 
+ * Project: 'Kotlin' 
+ * Target:  'Kotlin' 
  */
 
 #ifndef RTE_COMPONENTS_H
