@@ -5,7 +5,5 @@
 #include <string.h>
 
 #define  DbgLog(...)        printf("DEBUG : ") ;\
-                            printf(__VA_ARGS__);\
-                            printf("\n");
-
+                            printf(__VA_ARGS__);
 #endif
