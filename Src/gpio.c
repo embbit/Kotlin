@@ -4,6 +4,11 @@
   * Description        : This file provides code for the configuration
   *                      of all used GPIO pins.
   ******************************************************************************
+  * This notice applies to any and all portions of this file
+  * that are not between comment pairs USER CODE BEGIN and
+  * USER CODE END. Other portions of this file, whether 
+  * inserted by the user or by software development tools
+  * are owned by their respective copyright owners.
   *
   * Copyright (c) 2017 STMicroelectronics International N.V. 
   * All rights reserved.
@@ -61,6 +66,7 @@
         * Output
         * EVENT_OUT
         * EXTI
+     PC2   ------> SharedStack_PC2
      PB13   ------> SPI2_SCK
      PB15   ------> SPI2_MOSI
 */
@@ -76,7 +82,7 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, NOTUSED_VSCP_LED_Pin|CH6_REL2_CNTRL_Pin|CH6_REL1_CNTRL_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(NOTUSED_VSCP_LED_GPIO_Port, NOTUSED_VSCP_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, OW_PWR_EN_Pin|VSCP_LED_Pin, GPIO_PIN_RESET);
@@ -87,23 +93,29 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CAN1_STB_GPIO_Port, CAN1_STB_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : PCPin PCPin PCPin PCPin */
-  GPIO_InitStruct.Pin = EXT_GPIO_1_Pin|EXT_GPIO_2_Pin|EXT_GPIO_3_Pin|NOTUSED_VSCP_BTN_Pin;
+  /*Configure GPIO pins : PCPin PCPin PCPin PCPin 
+                           PCPin PCPin PCPin PCPin 
+                           PCPin PCPin */
+  GPIO_InitStruct.Pin = EXT_GPIO_1_Pin|EXT_GPIO_2_Pin|EXT_GPIO_3_Pin|NOTUSED_VSCP_BTN_Pin 
+                          |CH6_REL2_CNTRL_Pin|CH6_REL1_CNTRL_Pin|CH1_REL2_CNTRL_Pin|CH1_REL1_CNTRL_Pin 
+                          |CH2_REL2_CNTRL_Pin|CH2_REL1_CNTRL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PCPin PCPin PCPin */
-  GPIO_InitStruct.Pin = NOTUSED_VSCP_LED_Pin|CH6_REL2_CNTRL_Pin|CH6_REL1_CNTRL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = OW_PWR_FAULT_Pin;
+  GPIO_InitStruct.Pin = NOTUSED_VSCP_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(NOTUSED_VSCP_LED_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PAPin PAPin PAPin PAPin 
+                           PAPin PAPin */
+  GPIO_InitStruct.Pin = CH5_REL2_CNTRL_Pin|CH5_REL1_CNTRL_Pin|CH4_REL2_CNTRL_Pin|CH4_REL1_CNTRL_Pin 
+                          |OW_PWR_FAULT_Pin|CH3_REL1_CNTRL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(OW_PWR_FAULT_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PAPin PAPin */
   GPIO_InitStruct.Pin = OW_PWR_EN_Pin|VSCP_LED_Pin;
