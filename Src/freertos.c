@@ -164,7 +164,8 @@ void taskVSCP_core_process(void const * argument)
     osDelayUntil(&xLastWakeTime, VSCP_CORE_PERIOD/portTICK_PERIOD_MS);
     xLastWakeTime = xTaskGetTickCount();
     vscp_core_process();
-    if (VSCP_Button_pressed)
+    //VSCP_Button_pressed = !HAL_GPIO_ReadPin(VSCP_BTN_GPIO_Port, VSCP_BTN_Pin);
+    if (!HAL_GPIO_ReadPin(VSCP_BTN_GPIO_Port, VSCP_BTN_Pin))
     {
         vscp_core_startNodeSegmentInit();
         VSCP_Button_pressed = 0;

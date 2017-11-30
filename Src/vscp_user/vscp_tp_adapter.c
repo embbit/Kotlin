@@ -172,15 +172,14 @@ extern BOOL vscp_tp_adapter_writeMessage(vscp_TxMessage const * const msg)
         }
         
         hcan1.pTxMsg = &TxMessage;
-        DbgLog("Send vscpClass: 0x%x; vscpType: 0x%x; DataLen: %d... ", msg->vscpClass, msg->vscpType, msg->dataNum);
         if (HAL_OK == HAL_CAN_Transmit(&hcan1, VSCP_CAN_TX_TIMEOUT_MS))
         {
-           DbgLog("Ok\n");
            status = TRUE;
+           DbgLog("Send vscpClass: 0x%x; vscpType: 0x%x; OrigAddr: 0x%x; DataLen: %d; Ok\n ", msg->vscpClass, msg->vscpType, msg->oAddr, msg->dataNum);
         }
         else
         {
-           DbgLog("Error\n");
+            DbgLog("Send vscpClass: 0x%x; vscpType: 0x%x; OrigAddr: 0x%x; DataLen: %d; Error\n ", msg->vscpClass, msg->vscpType, msg->oAddr, msg->dataNum);
         }
     }
     return status;
