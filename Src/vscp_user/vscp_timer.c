@@ -127,8 +127,8 @@ extern void vscp_timer_init(void)
  */
 extern uint8_t  vscp_timer_create(void)
 {
-    uint8_t timerId = 0xFF;
     uint8_t index   = 0;
+    uint8_t timerId = VSCP_TIMER_ID_INVALID;
 
     /* Search for an available timer */
     for(index = 0; index < VSCP_TIMER_NUM; ++index)
