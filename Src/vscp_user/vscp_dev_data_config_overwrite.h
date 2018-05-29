@@ -125,7 +125,7 @@ extern "C"
 
 #define VSCP_DEV_DATA_CONFIG_MANUFACTURER_SUB_DEVICE_ID     ((uint32_t)0x00000000)
 
-#define VSCP_DEV_DATA_CONFIG_MDF_URL                        "bit.eu5.org/kotlin.xml"
+#define VSCP_DEV_DATA_CONFIG_MDF_URL                        "embbit.tk/kotlin.xml"
 
 #define VSCP_DEV_DATA_CONFIG_VERSION_MAJOR                  0
 
