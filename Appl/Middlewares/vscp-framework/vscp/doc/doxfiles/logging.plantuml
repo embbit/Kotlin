@@ -1,0 +1,16 @@
+@startuml
+
+title "Logging"
+
+participant PC as pc
+participant Node as node
+
+pc ->> node: Set <log id> (CLASS1.Protocol.WriteRegister)
+pc ->> node: Set <log level> (CLASS1.Log.SetLogLevel)
+pc ->> node: Start log with <log id> (CLASS1.Log.LogStart)
+
+opt If received log id is equal to the stored log id in the register
+    node ->> pc: Log message (CLASS1.Log.LogEvent)
+end opt
+
+@enduml
