@@ -310,7 +310,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x8000000</StartAddress>
-                <Size>0x4000</Size>
+                <Size>0x10000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -365,7 +365,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F105xC</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;         ../Drivers/STM32F1xx_HAL_Driver/Inc;         ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;         ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;         ../Drivers/CMSIS/Include;         ../Middlewares/vscp-framework/vscp;         ../Src/vscp_user</IncludePath>
+              <IncludePath>../Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Middlewares/vscp-bootloader;../Src/vscp_user</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -460,6 +460,11 @@
               <FileName>can.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/can.c</FilePath>
+            </File>
+            <File>
+              <FileName>crc16ccitt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\crc16ccitt.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -565,6 +570,46 @@
               <FileName>startup_stm32f105xc.s</FileName>
               <FileType>2</FileType>
               <FilePath>startup_stm32f105xc.s</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middlewares/vscp-bootloader</GroupName>
+          <Files>
+            <File>
+              <FileName>vscp_bootloader.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\vscp-bootloader\vscp_bootloader.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_ps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\vscp-bootloader\vscp_ps.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_dev_data.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\vscp-bootloader\vscp_dev_data.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Application/vscp-user</GroupName>
+          <Files>
+            <File>
+              <FileName>vscp_bl_adapter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_bl_adapter.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_tp_adapter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_tp_adapter.c</FilePath>
+            </File>
+            <File>
+              <FileName>vscp_ps_access.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\vscp_user\vscp_ps_access.c</FilePath>
             </File>
           </Files>
         </Group>

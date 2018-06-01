@@ -45,8 +45,8 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
-#include "vscp_core.h"
 #include "eeprom.h"
+#include "vscp_bootloader.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -105,7 +105,8 @@ int main(void)
   HAL_FLASH_Unlock();
 
   /* USER CODE END 2 */
-
+  vscp_bootloader_init();
+  vscp_bootloader_run();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
