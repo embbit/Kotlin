@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>D:\HAUTOM_GIT\Kotlin\\Kotlin</ProjectName>
+<ProjectName>D:\HAUTOM_GIT\Kotlin\Boot\\Kotlin_Boot</ProjectName>
 <CMSIS>..\Drivers\CMSIS</CMSIS>
 <HAL_Driver>C:\Users\user\STM32Cube\Repository\STM32Cube_FW_F1_V1.3.0\Drivers\CMSIS</HAL_Driver>
 
@@ -11,6 +11,40 @@
 <filestoremove>
 	<file>
 	   		<name>..\Drivers\CMSIS\Device\ST\STM32F1xx\Source\Templates\arm\startup_stm32f105xc.s</name>
+	   		<name>..\Src\freertos.c</name>
+	   		<name>..\Src\usb_device.c</name>
+	   		<name>..\Src\usbd_conf.c</name>
+	   		<name>..\Src\usbd_desc.c</name>
+	   		<name>..\Src\usbd_cdc_if.c</name>
+	   		<name>..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_pcd.c</name>
+	   		<name>..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_pcd_ex.c</name>
+	   		<name>..\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_ll_usb.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\portable\MemMang\heap_4.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\portable\RVDS\ARM_CM3\port.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ctlreq.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Src\usbd_cdc.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\croutine.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\event_groups.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\list.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\queue.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\tasks.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\timers.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS\cmsis_os.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\portable\MemMang\heap_4.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\portable\RVDS\ARM_CM3\port.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\croutine.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\event_groups.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\list.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\queue.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\tasks.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\timers.c</name>
+	   		<name>..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS\cmsis_os.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ctlreq.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.c</name>
+	   		<name>..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Src\usbd_cdc.c</name>
 	</file>
 </filestoremove>
 
@@ -19,12 +53,17 @@
 	   <include></include>
     </Aincludes>
 	<Cincludes>
+	   		<include>..\Middlewares\Third_Party\FreeRTOS\Source\portable\RVDS\ARM_CM3</include>
+	   		<include>..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc</include>
+	   		<include>..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc</include>
+	   		<include>..\Middlewares\Third_Party\FreeRTOS\Source\include</include>
+	   		<include>..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS</include>
     </Cincludes>
 </inctoremove>
 
 <configs>
   <config>
-    <name>Kotlin</name>				
+    <name>Kotlin_Boot</name>				
     <device>STM32F105RBTx</device>		 
     <heapSize>0x400</heapSize>
     <stackSize>0x200</stackSize>
@@ -40,9 +79,11 @@
         <define></define>
     </Adefines>   
 
-    <UsedFreeRTOS>true</UsedFreeRTOS>
+    <UsedFreeRTOS></UsedFreeRTOS>
     <Aincludes>
-	   			<include>..\Inc</include>
+
+
+	    	<include></include>
     </Aincludes>
     <Cdefines>
     </Cdefines>
@@ -62,12 +103,7 @@
 	   <include>..\Inc</include>
 	   <include>..\Drivers\STM32F1xx_HAL_Driver\Inc</include>
 	   <include>..\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy</include>
-	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\portable\RVDS\ARM_CM3</include>
-	   <include>..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc</include>
-	   <include>..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc</include>
 	   <include>..\Drivers\CMSIS\Device\ST\STM32F1xx\Include</include>
-	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\include</include>
-	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS</include>
 	   <include>..\Drivers\CMSIS\Include</include>
 
     </Cincludes>
@@ -76,69 +112,12 @@
 
     <underRoot>false</underRoot>
 
-      <group>
-        <name>Middlewares</name>  
-                    <group>
-                            <name>FreeRTOS</name>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3/port.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/croutine.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/event_groups.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/list.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/queue.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/tasks.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/timers.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c</name>
-                                            </file>
-                </group>
-                    <group>
-                            <name>USB_Device_Library</name>
-                                            <file>
-                                                    <name>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c</name>
-                                            </file>
-                                            <file>
-                                                    <name>../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c</name>
-                                            </file>
-                </group>
-      </group> 
 	   <group>
 	    <name>Drivers</name> 
 		   <group>
 		 		<name>STM32F1xx_HAL_Driver</name>
 						<file>
 							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c</name>
-						</file>
-						<file>
-							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c</name>
-						</file>
-						<file>
-							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c</name>
-						</file>
-						<file>
-							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c</name>
 						</file>
 						<file>
 							<name>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_can.c</name>
@@ -210,31 +189,11 @@
                                 </file>
 
                                 <file>
-                                 <name>..\Src\freertos.c</name>
-                                </file>
-
-                                <file>
                                  <name>..\Src\spi.c</name>
                                 </file>
 
                                 <file>
                                  <name>..\Src\usart.c</name>
-                                </file>
-
-                                <file>
-                                 <name>..\Src\usb_device.c</name>
-                                </file>
-
-                                <file>
-                                 <name>..\Src\usbd_conf.c</name>
-                                </file>
-
-                                <file>
-                                 <name>..\Src\usbd_desc.c</name>
-                                </file>
-
-                                <file>
-                                 <name>..\Src\usbd_cdc_if.c</name>
                                 </file>
 
                                 <file>

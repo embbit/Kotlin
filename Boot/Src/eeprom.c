@@ -42,8 +42,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "eeprom.h"
 #include "eeprom_layout.h"
-#include "FreeRTOS.h"
-#include "task.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -429,7 +428,6 @@ uint16_t EE_WriteVariable(uint16_t VirtAddress, uint16_t Data)
 {
   uint16_t Status = 0;
     
-  taskENTER_CRITICAL();
     
   /* Write the variable virtual address and value in the EEPROM */
   Status = EE_VerifyPageFullWriteVariable(VirtAddress, Data);
@@ -440,8 +438,7 @@ uint16_t EE_WriteVariable(uint16_t VirtAddress, uint16_t Data)
     /* Perform Page transfer */
     Status = EE_PageTransfer(VirtAddress, Data);
   }
-  
-  taskEXIT_CRITICAL();
+
   
   /* Return last operation status */
   return Status;

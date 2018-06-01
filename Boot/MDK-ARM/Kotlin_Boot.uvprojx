@@ -310,7 +310,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x8000000</StartAddress>
-                <Size>0x20000</Size>
+                <Size>0x4000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -365,7 +365,7 @@
               <MiscControls>--C99</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F105xC</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;        ../Drivers/STM32F1xx_HAL_Driver/Inc;        ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;        ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3;        ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;        ../Middlewares/Third_Party/FreeRTOS/Source/include;        ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;        ../Drivers/CMSIS/Include;        ../Middlewares/vscp-framework/vscp;        ../Src/vscp_user;        ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc;        ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc</IncludePath>
+              <IncludePath>../Inc;         ../Drivers/STM32F1xx_HAL_Driver/Inc;         ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;         ../Drivers/CMSIS/Device/ST/STM32F1xx/Include;         ../Drivers/CMSIS/Include;         ../Middlewares/vscp-framework/vscp;         ../Src/vscp_user</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -382,7 +382,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\Inc</IncludePath>
+              <IncludePath></IncludePath>
             </VariousControls>
           </Aads>
           <LDads>
@@ -406,186 +406,6 @@
       </TargetOption>
       <Groups>
         <Group>
-          <GroupName>Middlewares/FreeRTOS</GroupName>
-          <Files>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/list.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3/port.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>Middlewares/vscp-framework</GroupName>
-          <Files>
-            <File>
-              <FileName>vscp_core.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_core.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_data_coding.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_data_coding.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_dev_data.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_dev_data.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_dm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_dm.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_dm_ng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_dm_ng.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_logger.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_logger.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_ps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_ps.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_transport.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_transport.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_util.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\vscp_util.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_action.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\templates\vscp_action.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_app_reg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\templates\vscp_app_reg.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_alarm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_alarm.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_control.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_control.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_information.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_information.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_log.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_log.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_measurement.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_measurement.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_measurezone.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_measurezone.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_security.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_security.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_weather.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_weather.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_weather_forecast.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\vscp-framework\vscp\events\vscp_weather_forecast.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>Application/vscp_user</GroupName>
-          <Files>
-            <File>
-              <FileName>vscp_portable.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\vscp_user\vscp_portable.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_ps_access.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\vscp_user\vscp_ps_access.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_tp_adapter.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\vscp_user\vscp_tp_adapter.c</FilePath>
-            </File>
-            <File>
-              <FileName>vscp_timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\vscp_user\vscp_timer.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>::CMSIS</GroupName>
         </Group>
         <Group>
@@ -602,39 +422,14 @@
               <FilePath>..\Src\eeprom_layout.c</FilePath>
             </File>
             <File>
-              <FileName>usbd_conf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_conf.c</FilePath>
-            </File>
-            <File>
               <FileName>usart.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/usart.c</FilePath>
             </File>
             <File>
-              <FileName>freertos.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/freertos.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_desc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_desc.c</FilePath>
-            </File>
-            <File>
-              <FileName>usb_device.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usb_device.c</FilePath>
-            </File>
-            <File>
               <FileName>spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/spi.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_cdc_if.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/usbd_cdc_if.c</FilePath>
             </File>
             <File>
               <FileName>stm32f1xx_it.c</FileName>
@@ -742,24 +537,9 @@
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f1xx_hal_pcd.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c</FilePath>
-            </File>
-            <File>
               <FileName>stm32f1xx_hal_spi_ex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_hal_pcd_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_ll_usb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c</FilePath>
             </File>
             <File>
               <FileName>stm32f1xx_hal_uart.c</FileName>
@@ -785,31 +565,6 @@
               <FileName>startup_stm32f105xc.s</FileName>
               <FileType>2</FileType>
               <FilePath>startup_stm32f105xc.s</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>Middlewares/USB_Device_Library</GroupName>
-          <Files>
-            <File>
-              <FileName>usbd_core.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_ioreq.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_ctlreq.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c</FilePath>
-            </File>
-            <File>
-              <FileName>usbd_cdc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c</FilePath>
             </File>
           </Files>
         </Group>
