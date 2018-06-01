@@ -5,4 +5,4 @@
        src="https://scan.coverity.com/projects/14348/badge.svg"/>
 </a>
 
-6-channel relay module with VSCP CAN-functionality
+Bootloader

@@ -3,8 +3,8 @@
  * Auto generated Run-Time-Environment Component Configuration File
  *      *** Do not modify ! ***
  *
- * Project: 'Kotlin' 
- * Target:  'Kotlin' 
+ * Project: 'Kotlin_Boot' 
+ * Target:  'Kotlin_Boot' 
  */
 
 #ifndef RTE_COMPONENTS_H

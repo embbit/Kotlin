@@ -3,7 +3,7 @@
  * Auto generated Run-Time-Environment Component Configuration File
  *      *** Do not modify ! ***
  *
- * Project: 'Kotlin' 
+ * Project: 'Kotlin_Appl' 
  * Target:  'Kotlin_Appl' 
  */
 
