@@ -83,6 +83,7 @@
 extern void vscp_bl_adapter_init(void)
 {
     /* Implement your code here ... */
+    vscp_ps_init();
 
     return;
 }
@@ -158,7 +159,7 @@ extern BOOL vscp_bl_adapter_getSegInitButtonState(void)
 {
     BOOL    state   = FALSE;
 
-    state = HAL_GPIO_ReadPin(VSCP_BTN_GPIO_Port, VSCP_BTN_Pin);
+    state = !HAL_GPIO_ReadPin(VSCP_BTN_GPIO_Port, VSCP_BTN_Pin);
 
     return state;
 }

@@ -169,7 +169,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>ST-LINKIII-KEIL_SWO</Key>
-          <Name>-U50FF71064985575710420487 -I0 -O2287 -S0 -C0 -A0 -N00("ARM CoreSight SW-DP") -D00(1BA01477) -L00(0) -TO27 -TC72000000 -TP21 -TDS8023 -TDT0 -TDC1F -TIE80000001 -TIP9 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F10x_CL.FLM -FS08008000 -FL018000 -FP0($$Device:STM32F105RB$Flash\STM32F10x_CL.FLM)</Name>
+          <Name>-U50FF71064985575710420487 -I0 -O2287 -S0 -C0 -A0 -N00("ARM CoreSight SW-DP") -D00(1BA01477) -L00(0) -TO27 -TC72000000 -TP21 -TDS8023 -TDT0 -TDC1F -TIE80000001 -TIP9 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F10x_CL.FLM -FS08008000 -FL017000 -FP0($$Device:STM32F105RB$Flash\STM32F10x_CL.FLM)</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
       <Breakpoint/>
@@ -195,6 +195,14 @@
           <ItemText>vscp_core_rxMessage</ItemText>
         </Ww>
       </WatchWindow1>
+      <MemoryWindow1>
+        <Mm>
+          <WinNumber>1</WinNumber>
+          <SubType>0</SubType>
+          <ItemText>0x0803F800</ItemText>
+          <AccSizeX>0</AccSizeX>
+        </Mm>
+      </MemoryWindow1>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>
@@ -356,7 +364,7 @@
 
   <Group>
     <GroupName>Middlewares/vscp-framework</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -692,7 +700,7 @@
 
   <Group>
     <GroupName>Application/User</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
