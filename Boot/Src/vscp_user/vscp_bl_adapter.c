@@ -76,7 +76,7 @@
 /*******************************************************************************
     GLOBAL FUNCTIONS
 *******************************************************************************/
-
+#define MAIN_APP_ADDR 0x8008000
 /**
  * This function initializes the module.
  */
@@ -107,7 +107,43 @@ extern uint8_t  vscp_bl_adapter_readNicknameId(void)
  */
 extern void vscp_bl_adapter_jumpToApp(void)
 {
-    while(1); /* Implement your code here ... */
+    typedef  void (*pFunction)(void);
+    
+    pFunction   Jump_To_Application;
+    uint32_t   JumpAddress;
+
+    __disable_irq();     
+
+    NVIC->ICER[0] = 0xFFFFFFFF;
+    NVIC->ICER[1] = 0xFFFFFFFF;
+    NVIC->ICER[2] = 0xFFFFFFFF;
+
+    NVIC->ICPR[0] = 0xFFFFFFFF;
+    NVIC->ICPR[1] = 0xFFFFFFFF;
+    NVIC->ICPR[2] = 0xFFFFFFFF;
+
+    RCC->APB1RSTR = 0x3E7EC83F;
+    RCC->APB2RSTR = 0x00005E7D;
+
+    RCC->APB1RSTR = 0;
+    RCC->APB2RSTR = 0;
+
+    RCC->APB1ENR = 0;
+    RCC->APB2ENR = 0;
+
+    SysTick->CTRL = 0;
+    SysTick->VAL = 0;
+
+    HAL_RCC_DeInit();
+
+    JumpAddress = *(uint32_t*)(MAIN_APP_ADDR + 4);
+    Jump_To_Application = (pFunction) JumpAddress;
+
+    SCB->VTOR = (uint32_t)MAIN_APP_ADDR;    
+
+    __set_MSP(*(uint32_t*) MAIN_APP_ADDR);
+    
+    Jump_To_Application();
     
     return;
     
