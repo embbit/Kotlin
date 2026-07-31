@@ -1,49 +1,92 @@
-# Telegram chat search — import & FTS
+# Telegram chat search — import, FTS & bot
 
-Import [Telegram Desktop](https://desktop.telegram.org/) JSON export into SQLite with full-text search.
+Tools for searching the @distillate_club_chat archive.
 
-## Quick start (Mac)
+## 1. Import (Mac)
 
 ```bash
 cd tg-distillate-search
-
-# Import (path to your export folder)
 python3 import_export.py ~/Downloads/ChatExport_2026-07-31/result.json -o distillate.db
-
-# Search
 python3 search_cli.py дефлегматор
-python3 search_cli.py колонна -n 5
 ```
 
-Import takes a few minutes for ~100k messages. Progress prints every 2000 rows.
+## 2. Telegram bot (VPS)
 
-## Options
+### Create bot
+
+1. Open [@BotFather](https://t.me/BotFather) → `/newbot` → copy token.
+2. Learn your Telegram user id ([@userinfobot](https://t.me/userinfobot) or similar).
+
+### Install on VPS
 
 ```bash
-python3 import_export.py result.json -o distillate.db --username distillate_club_chat --replace
+sudo mkdir -p /opt/distillate
+sudo chown $USER:$USER /opt/distillate
+
+# Copy files
+scp distillate.db user@vps:/opt/distillate/
+scp -r tg-distillate-search user@vps:/opt/distillate/
+
+ssh user@vps
+cd /opt/distillate/tg-distillate-search
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example /opt/distillate/.env
+nano /opt/distillate/.env   # BOT_TOKEN, ALLOWED_USER_IDS, DB_PATH
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-o` | Output database path (default: `distillate.db`) |
-| `--username` | For `t.me/username/msg_id` links |
-| `--replace` | Delete existing DB before import |
+### Run manually (test)
+
+```bash
+cd /opt/distillate/tg-distillate-search
+source .venv/bin/activate
+set -a && source /opt/distillate/.env && set +a
+python bot.py
+```
+
+Send a message to the bot in Telegram.
+
+### systemd (24/7)
+
+```bash
+sudo cp deploy/distillate-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now distillate-bot
+sudo systemctl status distillate-bot
+journalctl -u distillate-bot -f
+```
+
+Adjust `User=` and paths in the unit file if needed.
+
+## Bot usage
+
+| Input | Action |
+|-------|--------|
+| `дефлегматор` | Search (up to 5 hits + links) |
+| `/start` | Help |
+| `/stats` | Archive size, import date |
+
+Only user ids from `ALLOWED_USER_IDS` can use the bot.
+
+## Environment
+
+| Variable | Description |
+|----------|-------------|
+| `BOT_TOKEN` | From BotFather |
+| `ALLOWED_USER_IDS` | Comma-separated Telegram user ids |
+| `DB_PATH` | Path to `distillate.db` |
+| `SEARCH_LIMIT` | Results per query (1–10, default 5) |
 
 ## Tests
 
 ```bash
-cd tg-distillate-search
 python3 -m unittest discover -s tests -v
 ```
 
-## Database
+## Roadmap
 
-- **messages** — id, dates, author, text, reply_to
-- **messages_fts** — FTS5 index (unicode61, Russian OK)
-- **chat_meta** — chat name, username, import time
-
-## Next steps
-
-1. Copy `distillate.db` to AdminVPS
-2. Telegram bot (polling) + same search module
-3. Telethon for incremental sync (no weekly export)
+- [ ] Telethon incremental sync
+- [ ] Vector / semantic search
+- [ ] Optional LLM summary
