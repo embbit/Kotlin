@@ -28,6 +28,7 @@ from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
 from tg_search.format import FormatResult, _esc, split_hits_to_messages
 from tg_search.pagination import (
+    SOURCE_FILTER_KEY,
     clear_sessions,
     get_session,
     keyboard_spec,
@@ -37,6 +38,7 @@ from tg_search.pagination import (
     save_session,
 )
 from tg_search.search import search_page
+from tg_search.source_filter import resolve_source, source_scope_label
 from tg_search.vector_index import VectorIndex
 
 logging.basicConfig(
@@ -66,7 +68,10 @@ HELP_TEXT = (
     "Приоритет у <b>свежих</b> сообщений.\n\n"
     "Команды:\n"
     "/start — справка\n"
-    "/stats — сведения об архиве"
+    "/stats — сведения об архиве\n"
+    "/source — фильтр: все / чат / канал\n"
+    "/chat или /чат <i>запрос</i> — только чат\n"
+    "/channel или /канал <i>запрос</i> — только канал"
 )
 
 
@@ -100,6 +105,9 @@ def _search_chunks(
     context: ContextTypes.DEFAULT_TYPE,
     query: str,
     shown: int,
+    *,
+    chat_id: int | None = None,
+    scope: str | None = None,
 ) -> tuple[list[FormatResult], bool]:
     config: BotConfig = context.bot_data["config"]
     vector_index = context.bot_data.get("vector_index")
@@ -109,10 +117,29 @@ def _search_chunks(
         limit=shown,
         offset=0,
         vector_index=vector_index,
+        chat_id=chat_id,
     )
-    chunks = split_hits_to_messages(result.hits, query)
+    chunks = split_hits_to_messages(result.hits, query, scope=scope)
     has_more = result.has_more and sum(c.fitted for c in chunks) >= shown
     return chunks, has_more
+
+
+def _effective_chat_id(context: ContextTypes.DEFAULT_TYPE) -> int | None:
+    return context.user_data.get(SOURCE_FILTER_KEY)
+
+
+def _scope_label(context: ContextTypes.DEFAULT_TYPE, chat_id: int | None) -> str | None:
+    if chat_id is None:
+        return None
+    config: BotConfig = context.bot_data["config"]
+    conn = connect(config.db_path)
+    try:
+        for row in list_sources(conn):
+            if int(row["chat_id"]) == chat_id:
+                return source_scope_label(row)
+    finally:
+        conn.close()
+    return None
 
 
 async def _send_html(
@@ -168,12 +195,17 @@ async def _send_search_page(
     message: Message,
     query: str,
     shown: int,
+    chat_id: int | None = None,
 ) -> None:
-    chunks, has_more = _search_chunks(context, query, shown)
+    if chat_id is None:
+        chat_id = _effective_chat_id(context)
+    scope = _scope_label(context, chat_id)
+    chunks, has_more = _search_chunks(
+        context, query, shown, chat_id=chat_id, scope=scope
+    )
 
     if not chunks or chunks[0].fitted == 0:
-        text = f"По запросу «{_esc(query)}» ничего не найдено."
-        await _send_html(message, text)
+        await _send_html(message, chunks[0].text if chunks else f"По запросу «{_esc(query)}» ничего не найдено.")
         return
 
     session_id = new_session_id()
@@ -184,6 +216,7 @@ async def _send_search_page(
         query=query,
         shown=total,
         messages=len(chunks),
+        chat_id=chat_id,
     )
     keyboard = _build_keyboard(session_id, has_more=has_more)
 
@@ -197,12 +230,108 @@ async def _send_search_page(
     await _send_html(anchor, chunks[-1].text, reply_markup=keyboard)
 
 
+async def cmd_source(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    config: BotConfig = context.bot_data["config"]
+    if not update.message or not update.effective_user:
+        return
+    if not _allowed(config, update.effective_user):
+        await _deny_access(update)
+        return
+
+    arg = " ".join(context.args).strip().lower() if context.args else ""
+    conn = connect(config.db_path)
+    try:
+        if not arg:
+            current = _effective_chat_id(context)
+            scope = _scope_label(context, current) or "все"
+            lines = [
+                f"Сейчас ищем: <b>{_esc(scope)}</b>",
+                "",
+                "Задать фильтр:",
+                "/source all — везде",
+                "/source chat — только чат",
+                "/source channel — только канал",
+            ]
+            await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+            return
+
+        if arg in {"all", "все", "*", "clear"}:
+            context.user_data.pop(SOURCE_FILTER_KEY, None)
+            await update.message.reply_text("Фильтр сброшен — ищем везде.")
+            return
+
+        source = resolve_source(conn, arg)
+        if source is None:
+            await update.message.reply_text(
+                "Неизвестный источник. Используйте: all, chat, channel, чат, канал"
+            )
+            return
+        context.user_data[SOURCE_FILTER_KEY] = int(source["chat_id"])
+        await update.message.reply_text(
+            f"Фильтр: только <b>{_esc(source['label'])}</b> (@{_esc(source['username'] or '—')}).",
+            parse_mode=ParseMode.HTML,
+        )
+    finally:
+        conn.close()
+
+
+async def _cmd_scoped_search(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    *,
+    source_key: str,
+) -> None:
+    config: BotConfig = context.bot_data["config"]
+    if not update.message or not update.effective_user:
+        return
+    if not _allowed(config, update.effective_user):
+        await _deny_access(update)
+        return
+
+    query = " ".join(context.args).strip()
+    conn = connect(config.db_path)
+    try:
+        source = resolve_source(conn, source_key)
+        if source is None:
+            await update.message.reply_text("Источник не найден в базе.")
+            return
+        chat_id = int(source["chat_id"])
+    finally:
+        conn.close()
+
+    if not query:
+        context.user_data[SOURCE_FILTER_KEY] = chat_id
+        await update.message.reply_text(
+            f"Фильтр: только <b>{_esc(source['label'])}</b>. Отправьте запрос.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    clear_sessions(context.user_data)
+    await update.message.chat.send_action("typing")
+    await _send_search_page(
+        context=context,
+        message=update.message,
+        query=query,
+        shown=config.search_limit,
+        chat_id=chat_id,
+    )
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.effective_user or not _allowed(config, update.effective_user):
         await _deny_access(update)
         return
     await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML)
+
+
+async def cmd_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _cmd_scoped_search(update, context, source_key="chat")
+
+
+async def cmd_channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _cmd_scoped_search(update, context, source_key="channel")
 
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -294,8 +423,12 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await callback.answer()
     prev_shown = session["shown"]
     prev_messages = session.get("messages", 1)
+    chat_id = session.get("chat_id")
+    scope = _scope_label(context, chat_id)
     target = next_shown(prev_shown, config.search_limit)
-    chunks, has_more = _search_chunks(context, query, target)
+    chunks, has_more = _search_chunks(
+        context, query, target, chat_id=chat_id, scope=scope
+    )
     total = sum(c.fitted for c in chunks)
 
     if total <= prev_shown:
@@ -312,6 +445,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         query=query,
         shown=total,
         messages=len(chunks),
+        chat_id=chat_id,
     )
 
     await _deliver_chunks(
@@ -355,6 +489,11 @@ def main() -> int:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_start))
     app.add_handler(CommandHandler("stats", cmd_stats))
+    app.add_handler(CommandHandler("source", cmd_source))
+    app.add_handler(CommandHandler("chat", cmd_chat))
+    app.add_handler(CommandHandler("channel", cmd_channel))
+    app.add_handler(CommandHandler("чат", cmd_chat))
+    app.add_handler(CommandHandler("канал", cmd_channel))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     app.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -44,22 +44,23 @@ def format_hits(
     page: int = 1,
     show_total: bool = False,
     continuation: bool = False,
+    scope: str | None = None,
 ) -> FormatResult:
     if not hits:
-        return FormatResult(
-            text=f"По запросу «{_esc(query)}» ничего не найдено.",
-            fitted=0,
-            truncated=False,
-        )
+        empty = f"По запросу «{_esc(query)}» ничего не найдено."
+        if scope:
+            empty += f" ({_esc(scope)})"
+        return FormatResult(text=empty, fitted=0, truncated=False)
 
+    scope_suffix = f" · {_esc(scope)}" if scope else ""
     if continuation:
-        lines = [f"«{_esc(query)}» · продолжение", ""]
+        lines = [f"«{_esc(query)}»{scope_suffix} · продолжение", ""]
     elif show_total:
-        lines = [f"«{_esc(query)}» · показано <b>{len(hits)}</b>", ""]
+        lines = [f"«{_esc(query)}»{scope_suffix} · показано <b>{len(hits)}</b>", ""]
     elif page > 1:
-        lines = [f"«{_esc(query)}» · стр. <b>{page}</b>", ""]
+        lines = [f"«{_esc(query)}»{scope_suffix} · стр. <b>{page}</b>", ""]
     else:
-        lines = [f"«{_esc(query)}»", ""]
+        lines = [f"«{_esc(query)}»{scope_suffix}", ""]
 
     fitted = 0
     reserve = 80 if len(hits) > 3 else 20
@@ -92,10 +93,11 @@ def split_hits_to_messages(
     query: str,
     *,
     start_index: int = 1,
+    scope: str | None = None,
 ) -> list[FormatResult]:
     """Split hits into one or more Telegram-sized message chunks."""
     if not hits:
-        return [format_hits([], query)]
+        return [format_hits([], query, scope=scope)]
 
     chunks: list[FormatResult] = []
     remaining = hits
@@ -107,6 +109,7 @@ def split_hits_to_messages(
             query,
             start_index=idx,
             continuation=not first,
+            scope=scope if first else scope,
         )
         chunks.append(chunk)
         if not chunk.truncated:
