@@ -20,6 +20,7 @@ from tg_search.fuzzy import (
 )
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
+from tg_search.source_priority import source_score_boost, source_sort_tier
 from tg_search.stopwords import content_words, query_tokens
 from tg_search.vector_index import VectorIndex
 
@@ -159,7 +160,7 @@ def _fetch_messages(conn: sqlite3.Connection, rowids: list[int]) -> dict[int, sq
     placeholders = ",".join("?" * len(rowids))
     rows = conn.execute(
         f"""
-        SELECT m.*, s.username, s.label AS source_label
+        SELECT m.*, s.username, s.label AS source_label, s.type AS source_type
         FROM messages m
         JOIN sources s ON s.chat_id = m.chat_id
         WHERE m.rowid IN ({placeholders})
@@ -368,6 +369,12 @@ def search_page(
                 )
                 total *= 1.0 + 0.45 * prox
 
+            total *= source_score_boost(
+                int(row["chat_id"]),
+                row["source_label"],
+                row["source_type"],
+            )
+
             scored.append(
                 SearchHit(
                     rowid=rowid,
@@ -397,7 +404,13 @@ def search_page(
                 )
             ]
 
-        scored.sort(key=lambda h: (-h.score, -h.date_unixtime))
+        scored.sort(
+            key=lambda h: (
+                -h.score,
+                -source_sort_tier(h.chat_id, h.source_label),
+                -h.date_unixtime,
+            )
+        )
         if scored:
             floor = scored[0].score * RELEVANCE_SCORE_RATIO
             scored = [h for h in scored if h.score >= floor]
