@@ -18,8 +18,15 @@ from tg_search.fuzzy import (
     text_matches_multi_word,
     text_matches_query_word,
 )
+from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
+from tg_search.query_synonyms import (
+    expand_word_groups,
+    fts_query_from_groups,
+    text_matches_synonym_word,
+    title_topic_boost,
+)
 from tg_search.result_dedupe import dedupe_search_hits
 from tg_search.source_priority import source_score_boost, source_sort_tier
 from tg_search.stopwords import content_words, query_tokens
@@ -73,22 +80,22 @@ def _search_words(raw: str, *, lemmatize: bool) -> list[str]:
 def _fts_query_words(words: list[str], *, prefix: bool = False) -> str:
     if not words:
         return ""
-    if len(words) == 1 and prefix:
-        word = words[0]
-        if len(word) < 3:
-            return f'"{word}"'
-        return f"{word}*"
-    return " ".join(f'"{w}"' for w in words)
+    groups = expand_word_groups(words)
+    if len(groups) == 1 and prefix:
+        return fts_query_from_groups(groups, prefix=True)
+    return fts_query_from_groups(groups, prefix=False)
 
 
 def _single_word_variants(word: str) -> set[str]:
     variants = {word.lower()}
     variants.add(lemmatize_word(word).lower())
+    for alt in expand_word_groups([word])[0]:
+        variants.add(alt)
     return variants
 
 
 def _text_matches_single_word(text: str, word: str) -> bool:
-    return text_matches_query_word(text, word, lemmatize_word=lemmatize_word)
+    return text_matches_synonym_word(text, word, lemmatize_word=lemmatize_word)
 
 
 def _make_snippet(text: str, words: list[str], *, max_len: int = 200) -> str:
@@ -376,6 +383,13 @@ def search_page(
                 row["source_label"],
                 row["source_type"],
             )
+
+            if int(row["chat_id"]) in (HRTZ_CHAT_ID, YOUTUBE_CHAT_ID):
+                total *= title_topic_boost(
+                    row["from_name"],
+                    words,
+                    lemmatize_word=lemmatize_word,
+                )
 
             scored.append(
                 SearchHit(
