@@ -81,12 +81,30 @@ Adjust `User=` and paths in the unit file if needed.
 
 ### Update code on VPS
 
+**На VPS** (если новый код ещё не залит):
+
 ```bash
-cd tg-distillate-search
-./deploy/deploy.sh user@your-vps
+# одноразово — скачать скрипт и обновить
+curl -fsSL https://raw.githubusercontent.com/embbit/Kotlin/cursor/tg-distillate-import-e619/tg-distillate-search/deploy/update-vps.sh \
+  | bash
 ```
 
-Or manually copy files and `sudo systemctl restart distillate-bot`.
+Или вручную:
+
+```bash
+cd /tmp
+git clone -b cursor/tg-distillate-import-e619 --depth 1 https://github.com/embbit/Kotlin.git
+rsync -av --exclude '.venv' --exclude '__pycache__' --exclude '*.db' --exclude '.env' \
+  Kotlin/tg-distillate-search/ /opt/distillate/tg-distillate-search/
+systemctl restart distillate-bot
+```
+
+**С Mac** (когда код уже есть локально):
+
+```bash
+cd tg-distillate-search
+./deploy/deploy.sh root@89.125.75.11
+```
 
 ## 3. Build vectors (semantic + fresh results)
 
