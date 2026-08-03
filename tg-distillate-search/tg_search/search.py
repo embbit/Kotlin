@@ -11,9 +11,15 @@ from pathlib import Path
 
 from tg_search.db import connect
 from tg_search.import_json import message_link
-from tg_search.fuzzy import best_match_needle, short_prefixes, text_matches_query_word
+from tg_search.fuzzy import (
+    best_match_needle,
+    short_prefixes,
+    text_matches_multi_word,
+    text_matches_query_word,
+)
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
+from tg_search.stopwords import content_words, query_tokens
 from tg_search.vector_index import VectorIndex
 
 WEIGHT_VECTOR = 0.40
@@ -21,6 +27,7 @@ WEIGHT_FTS = 0.25
 WEIGHT_RECENCY = 0.35
 RECENCY_HALF_LIFE_DAYS = 90
 MIN_VECTOR_ONLY_SIM = 0.52
+MIN_VECTOR_ONLY_SIM_MULTI = 0.62
 RELEVANCE_SCORE_RATIO = 0.42
 
 
@@ -46,15 +53,22 @@ class SearchHit:
 
 
 def _query_words(raw: str) -> list[str]:
-    return re.findall(r"[\w\u0400-\u04FF]+", raw, flags=re.UNICODE)
+    return query_tokens(raw)
 
 
-def _fts_query(raw: str, *, lemmatize: bool, prefix: bool = False) -> str:
-    words = _query_words(raw)
+def _search_words(raw: str, *, lemmatize: bool) -> list[str]:
+    if lemmatize:
+        words = content_words(raw, lemmatize_word)
+    else:
+        words = content_words(raw, lambda w: w)
+    if not words:
+        return _query_words(raw)
+    return words
+
+
+def _fts_query_words(words: list[str], *, prefix: bool = False) -> str:
     if not words:
         return ""
-    if lemmatize:
-        words = [lemmatize_word(w) for w in words]
     if len(words) == 1 and prefix:
         word = words[0]
         if len(word) < 3:
@@ -103,23 +117,25 @@ def _select_candidates(
 ) -> set[int]:
     if not fts_map and not vector_map:
         return set()
-    # Single-word queries: FTS only — vectors must not substitute unrelated terms.
-    if len(words) == 1:
+    if len(words) <= 1:
         return set(fts_map)
     if not vector_map:
         return set(fts_map)
+    min_sim = MIN_VECTOR_ONLY_SIM_MULTI if len(words) >= 2 else MIN_VECTOR_ONLY_SIM
     candidates = set(fts_map) | set(vector_map)
     return {
         rowid
         for rowid in candidates
-        if rowid in fts_map or vector_map.get(rowid, -1.0) >= MIN_VECTOR_ONLY_SIM
+        if rowid in fts_map or vector_map.get(rowid, -1.0) >= min_sim
     }
 
 
 def _score_weights(words: list[str]) -> tuple[float, float, float]:
-    if len(words) == 1:
+    if len(words) <= 1:
         return 0.50, 0.30, 0.20
-    return WEIGHT_FTS, WEIGHT_VECTOR, WEIGHT_RECENCY
+    if len(words) >= 3:
+        return 0.40, 0.40, 0.20
+    return 0.35, 0.35, 0.30
 
 
 def _recency_score(date_unixtime: int, now: int | None = None) -> float:
@@ -220,11 +236,11 @@ def _fts_hits(
     pool: int,
     lemmatize: bool,
 ) -> dict[int, tuple[float, str]]:
-    words = _query_words(query)
+    words = _search_words(query, lemmatize=lemmatize)
     if not words:
         return {}
 
-    fts_q = _fts_query(query, lemmatize=lemmatize)
+    fts_q = _fts_query_words(words)
     hits: dict[int, tuple[float, str]] = {}
     if fts_q:
         hits = _run_fts_query(conn, fts_q, words, pool=pool)
@@ -233,7 +249,7 @@ def _fts_hits(
         word = words[0]
 
         if not hits:
-            prefix_q = _fts_query(query, lemmatize=lemmatize, prefix=True)
+            prefix_q = _fts_query_words(words, prefix=True)
             if prefix_q and prefix_q != fts_q:
                 hits = _run_fts_query(conn, prefix_q, words, pool=pool)
 
@@ -290,8 +306,8 @@ def search_page(
     conn = connect(db_path)
     try:
         pool = min(max((offset + limit) * 3, 50), 500)
-        words = _query_words(query)
         use_lemmas = lemmas_indexed(conn)
+        words = _search_words(query, lemmatize=use_lemmas)
 
         fts_map = _fts_hits(conn, query, pool=pool, lemmatize=use_lemmas)
         vector_map: dict[int, float] = {}
@@ -347,8 +363,17 @@ def search_page(
                 )
             )
 
-        if len(words) == 1:
-            scored = [h for h in scored if _text_matches_single_word(h.text, words[0])]
+        if len(words) <= 1:
+            if words:
+                scored = [h for h in scored if _text_matches_single_word(h.text, words[0])]
+        else:
+            scored = [
+                h
+                for h in scored
+                if text_matches_multi_word(
+                    h.text, words, lemmatize_word=lemmatize_word
+                )
+            ]
 
         scored.sort(key=lambda h: (-h.score, -h.date_unixtime))
         if scored:

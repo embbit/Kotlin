@@ -72,6 +72,32 @@ def text_matches_query_word(text: str, word: str, *, lemmatize_word) -> bool:
     return False
 
 
+def count_content_matches(
+    text: str,
+    words: list[str],
+    *,
+    lemmatize_word,
+) -> int:
+    return sum(
+        1 for word in words if text_matches_query_word(text, word, lemmatize_word=lemmatize_word)
+    )
+
+
+def text_matches_multi_word(
+    text: str,
+    words: list[str],
+    *,
+    lemmatize_word,
+) -> bool:
+    if not words:
+        return True
+    if len(words) == 1:
+        return text_matches_query_word(text, words[0], lemmatize_word=lemmatize_word)
+    matches = count_content_matches(text, words, lemmatize_word=lemmatize_word)
+    needed = len(words) if len(words) <= 2 else max(2, (len(words) + 1) // 2)
+    return matches >= needed
+
+
 def best_match_needle(text: str, word: str) -> str | None:
     lower = text.lower()
     w = word.lower()
