@@ -39,7 +39,7 @@ class TestFormatTruncation(unittest.TestCase):
         self.assertGreater(len(chunks), 1)
         total = sum(c.fitted for c in chunks)
         self.assertEqual(total, len(hits))
-        self.assertIn("продолжение", chunks[1].text)
+        self.assertIn("11–", chunks[1].text)
 
 
 if __name__ == "__main__":

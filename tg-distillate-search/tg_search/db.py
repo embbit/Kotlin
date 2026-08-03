@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS messages (
     from_id TEXT,
     reply_to_id INTEGER,
     text TEXT NOT NULL,
+    text_lemma TEXT,
     edited_unixtime INTEGER,
     UNIQUE(chat_id, message_id),
     FOREIGN KEY (chat_id) REFERENCES sources(chat_id)
@@ -44,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_messages_from_id ON messages(from_id);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
-    text,
+    text_lemma,
     from_name,
     content='messages',
     content_rowid='rowid',
@@ -87,8 +88,8 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
     insert = """
         INSERT INTO messages (
             chat_id, message_id, date_unixtime, date_iso, from_name, from_id,
-            reply_to_id, text, edited_unixtime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            reply_to_id, text, text_lemma, edited_unixtime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
     """
     for row in old_rows:
         conn.execute(
@@ -106,8 +107,13 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
             ),
         )
 
-    rebuild_fts(conn)
-    set_meta(conn, "schema_version", SCHEMA_VERSION)
+    set_meta(conn, "schema_version", "2")
+
+
+def _ensure_v3_columns(conn: sqlite3.Connection) -> None:
+    cols = _table_columns(conn, "messages")
+    if "text_lemma" not in cols:
+        conn.execute("ALTER TABLE messages ADD COLUMN text_lemma TEXT")
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -119,10 +125,30 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     cols = _table_columns(conn, "messages")
     if "message_id" not in cols and "id" in cols:
         _migrate_v1_to_v2(conn)
-        return
+        cols = _table_columns(conn, "messages")
 
-    conn.executescript(SCHEMA_SQL)
-    if get_meta(conn, "schema_version") != SCHEMA_VERSION:
+    _ensure_v3_columns(conn)
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS chat_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS sources (
+            chat_id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            username TEXT,
+            label TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_messages_date ON messages(date_unixtime);
+        CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_from_id ON messages(from_id);
+        """
+    )
+
+    version = get_meta(conn, "schema_version") or "2"
+    if version != SCHEMA_VERSION:
         set_meta(conn, "schema_version", SCHEMA_VERSION)
 
 

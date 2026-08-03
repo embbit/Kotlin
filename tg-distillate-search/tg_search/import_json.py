@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from tg_search.db import connect, count_messages, list_sources, rebuild_fts, set_meta
+from tg_search.lemmatize import lemmatize_text
+from tg_search.lemmas import META_LEMMAS_INDEXED, fts_uses_lemmas, rebuild_lemma_fts
 from tg_search.text import flatten_text
 
 BATCH_SIZE = 2000
@@ -49,6 +51,7 @@ def iter_message_rows(
             raw.get("from_id"),
             raw.get("reply_to_message_id"),
             text,
+            lemmatize_text(text),
             int(edited) if edited else None,
         )
 
@@ -100,8 +103,8 @@ def import_export(
         insert_sql = """
             INSERT INTO messages (
                 chat_id, message_id, date_unixtime, date_iso, from_name, from_id,
-                reply_to_id, text, edited_unixtime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                reply_to_id, text, text_lemma, edited_unixtime
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         batch: list[tuple[Any, ...]] = []
@@ -122,7 +125,11 @@ def import_export(
         skipped = len(export.get("messages", [])) - imported
 
         print(f"  [{label}] rebuilding FTS index...", flush=True)
-        rebuild_fts(conn)
+        if fts_uses_lemmas(conn):
+            rebuild_fts(conn)
+            set_meta(conn, META_LEMMAS_INDEXED, "1")
+        else:
+            rebuild_lemma_fts(conn)
 
         set_meta(conn, "imported_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         set_meta(conn, "message_count", str(count_messages(conn)))

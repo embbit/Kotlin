@@ -106,7 +106,21 @@ cd tg-distillate-search
 ./deploy/deploy.sh root@89.125.75.11
 ```
 
-## 3. Build vectors (semantic + fresh results)
+## 3. Build lemmas (word forms in FTS)
+
+For an **existing** database, run once after deploy:
+
+```bash
+pip install -r requirements.txt
+python3 build_lemmas.py -d /opt/distillate/distillate.db
+systemctl restart distillate-bot
+```
+
+~103k messages: a few minutes on CPU. New imports lemmatize automatically.
+
+Search then matches word forms: `сухопарник` finds `сухопарника`, `сухопарники`, etc.
+
+## 4. Build vectors (semantic + fresh results)
 
 ```bash
 pip install -r requirements.txt
@@ -116,7 +130,7 @@ systemctl restart distillate-bot
 
 First run downloads embedding model (~100MB). ~105k messages: 30–90 min on CPU.
 
-Search = **vectors + FTS + recency** (newer messages rank higher).
+Search = **lemmatized FTS + vectors + recency** (newer messages rank higher).
 
 ## Bot usage
 

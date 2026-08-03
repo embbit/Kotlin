@@ -11,12 +11,16 @@ from pathlib import Path
 
 from tg_search.db import connect
 from tg_search.import_json import message_link
+from tg_search.lemmatize import lemmatize_word
+from tg_search.lemmas import lemmas_indexed
 from tg_search.vector_index import VectorIndex
 
 WEIGHT_VECTOR = 0.40
 WEIGHT_FTS = 0.25
 WEIGHT_RECENCY = 0.35
 RECENCY_HALF_LIFE_DAYS = 90
+MIN_VECTOR_ONLY_SIM = 0.52
+RELEVANCE_SCORE_RATIO = 0.42
 
 
 @dataclass
@@ -40,23 +44,33 @@ class SearchHit:
         return self.message_id
 
 
-WEIGHT_VECTOR = 0.40
-WEIGHT_FTS = 0.25
-WEIGHT_RECENCY = 0.35
-RECENCY_HALF_LIFE_DAYS = 90
-MIN_VECTOR_ONLY_SIM = 0.52
-RELEVANCE_SCORE_RATIO = 0.42
-
-
 def _query_words(raw: str) -> list[str]:
     return re.findall(r"[\w\u0400-\u04FF]+", raw, flags=re.UNICODE)
 
 
-def _fts_query(raw: str) -> str:
+def _fts_query(raw: str, *, lemmatize: bool) -> str:
     words = _query_words(raw)
     if not words:
         return ""
+    if lemmatize:
+        words = [lemmatize_word(w) for w in words]
     return " ".join(f'"{w}"' for w in words)
+
+
+def _make_snippet(text: str, words: list[str], *, max_len: int = 200) -> str:
+    lower = text.lower()
+    for word in words:
+        idx = lower.find(word.lower())
+        if idx >= 0:
+            start = max(0, idx - 60)
+            end = min(len(text), idx + len(word) + 100)
+            chunk = text[start:end]
+            if start > 0:
+                chunk = "… " + chunk
+            if end < len(text):
+                chunk = chunk + " …"
+            return chunk[:max_len]
+    return text[:max_len]
 
 
 def _select_candidates(
@@ -115,8 +129,15 @@ def _fetch_messages(conn: sqlite3.Connection, rowids: list[int]) -> dict[int, sq
     return {row["rowid"]: row for row in rows}
 
 
-def _fts_hits(conn: sqlite3.Connection, query: str, *, pool: int) -> dict[int, tuple[float, str]]:
-    fts_q = _fts_query(query)
+def _fts_hits(
+    conn: sqlite3.Connection,
+    query: str,
+    *,
+    pool: int,
+    lemmatize: bool,
+) -> dict[int, tuple[float, str]]:
+    words = _query_words(query)
+    fts_q = _fts_query(query, lemmatize=lemmatize)
     if not fts_q:
         return {}
 
@@ -125,7 +146,7 @@ def _fts_hits(conn: sqlite3.Connection, query: str, *, pool: int) -> dict[int, t
         SELECT
             m.rowid,
             rank AS fts_rank,
-            snippet(messages_fts, 0, '[', ']', ' … ', 24) AS snippet
+            m.text AS message_text
         FROM messages_fts fts
         JOIN messages m ON m.rowid = fts.rowid
         WHERE messages_fts MATCH ?
@@ -136,7 +157,10 @@ def _fts_hits(conn: sqlite3.Connection, query: str, *, pool: int) -> dict[int, t
     ).fetchall()
 
     return {
-        row["rowid"]: (_fts_score(row["fts_rank"]), row["snippet"])
+        row["rowid"]: (
+            _fts_score(row["fts_rank"]),
+            _make_snippet(row["message_text"], words),
+        )
         for row in rows
     }
 
@@ -177,8 +201,9 @@ def search_page(
     try:
         pool = min(max((offset + limit) * 3, 50), 500)
         words = _query_words(query)
+        use_lemmas = lemmas_indexed(conn)
 
-        fts_map = _fts_hits(conn, query, pool=pool)
+        fts_map = _fts_hits(conn, query, pool=pool, lemmatize=use_lemmas)
         vector_map: dict[int, float] = {}
         if vector_index is not None:
             for rowid, sim in vector_index.search(query, limit=pool):

@@ -216,6 +216,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         count = count_messages(conn)
         imported = get_meta(conn, "imported_at") or "?"
         vectors = get_meta(conn, "vector_count") or "0"
+        lemmas = get_meta(conn, "lemmas_indexed") or "0"
         sources = list_sources(conn)
     finally:
         conn.close()
@@ -226,6 +227,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     text = (
         f"Сообщений в индексе: <b>{count}</b>\n"
+        f"Леммы FTS: <b>{'да' if lemmas == '1' else 'нет — build_lemmas.py'}</b>\n"
         f"Векторов: <b>{vectors}</b>\n"
         f"Источники:\n" + "\n".join(src_lines) + "\n"
         f"Импорт: {_esc(imported)}"
