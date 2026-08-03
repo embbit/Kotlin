@@ -28,15 +28,15 @@ class TestSourcePriority(unittest.TestCase):
         ch = source_score_boost(1663164507, "канал", "channel")
         web = source_score_boost(HRTZ_CHAT_ID, "сайт")
         chat = source_score_boost(1663164507, "чат", "supergroup")
-        self.assertGreater(yt, ch)
-        self.assertGreater(ch, web)
-        self.assertGreater(web, chat)
+        self.assertGreater(yt, web)
+        self.assertGreater(web, ch)
+        self.assertGreater(ch, chat)
 
     def test_sort_tier_order(self) -> None:
         tiers = [
             source_sort_tier(YOUTUBE_CHAT_ID, "youtube"),
-            source_sort_tier(1, "канал", "channel"),
             source_sort_tier(HRTZ_CHAT_ID, "сайт"),
+            source_sort_tier(1, "канал", "channel"),
             source_sort_tier(1, "чат", "supergroup"),
         ]
         self.assertEqual(tiers, sorted(tiers, reverse=True))

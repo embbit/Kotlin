@@ -94,7 +94,7 @@ class TestSourcePriorityOrder(unittest.TestCase):
             )
         )
         order = [h.source_label for h in hits]
-        self.assertEqual(order, ["youtube", "канал", "сайт", "чат"])
+        self.assertEqual(order, ["youtube", "сайт", "канал", "чат"])
 
 
 class TestSearchDedupeIntegration(unittest.TestCase):
