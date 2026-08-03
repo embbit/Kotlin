@@ -20,6 +20,7 @@ from tg_search.fuzzy import (
 )
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
+from tg_search.result_dedupe import dedupe_search_hits
 from tg_search.source_priority import source_score_boost, source_sort_tier
 from tg_search.stopwords import content_words, query_tokens
 from tg_search.vector_index import VectorIndex
@@ -47,6 +48,7 @@ class SearchHit:
     link: str
     snippet: str
     score: float = 0.0
+    source_type: str | None = None
 
     @property
     def id(self) -> int:
@@ -389,6 +391,7 @@ def search_page(
                     link=hit_link(row),
                     snippet=snippet,
                     score=total,
+                    source_type=row["source_type"],
                 )
             )
 
@@ -407,10 +410,13 @@ def search_page(
         scored.sort(
             key=lambda h: (
                 -h.score,
-                -source_sort_tier(h.chat_id, h.source_label),
+                -source_sort_tier(
+                    h.chat_id, h.source_label, h.source_type
+                ),
                 -h.date_unixtime,
             )
         )
+        scored = dedupe_search_hits(scored)
         if scored:
             floor = scored[0].score * RELEVANCE_SCORE_RATIO
             scored = [h for h in scored if h.score >= floor]
