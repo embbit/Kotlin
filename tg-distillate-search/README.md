@@ -95,7 +95,8 @@ Search = **vectors + FTS + recency** (newer messages rank higher).
 
 | Input | Action |
 |-------|--------|
-| `дефлегматор` | Search (up to 5 hits + links, recent first) |
+| `дефлегматор` | Search (first page + links, recent first) |
+| **Дальше ➡️** / **Стоп** | Next page / hide buttons |
 | `/start` | Help |
 | `/stats` | Archive size, vectors, import date |
 
