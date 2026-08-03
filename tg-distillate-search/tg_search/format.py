@@ -25,9 +25,9 @@ def format_hits(hits: list[SearchHit], query: str) -> str:
         snippet = _esc(hit.snippet)
         if len(snippet) > MAX_SNIPPET_LEN:
             snippet = snippet[: MAX_SNIPPET_LEN - 1] + "…"
-        lines.append(f"<b>{i}.</b> {date} — {author}")
+        lines.append(f"<b>{i}.</b> [{_esc(hit.source_label)}] {date} — {author}")
         lines.append(snippet)
-        lines.append(f'<a href="{hit.link}">открыть в чате</a>')
+        lines.append(f'<a href="{hit.link}">открыть</a>')
         lines.append("")
 
     text = "\n".join(lines).strip()

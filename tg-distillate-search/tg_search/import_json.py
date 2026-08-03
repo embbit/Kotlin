@@ -8,10 +8,18 @@ import time
 from pathlib import Path
 from typing import Any, Iterator
 
-from tg_search.db import connect, rebuild_fts, set_meta
+from tg_search.db import connect, count_messages, list_sources, rebuild_fts, set_meta
 from tg_search.text import flatten_text
 
 BATCH_SIZE = 2000
+
+
+def default_label(export_type: str) -> str:
+    if "channel" in export_type:
+        return "канал"
+    if "group" in export_type or "chat" in export_type:
+        return "чат"
+    return "источник"
 
 
 def message_link(username: str | None, chat_id: int, message_id: int) -> str:
@@ -22,8 +30,8 @@ def message_link(username: str | None, chat_id: int, message_id: int) -> str:
 
 def iter_message_rows(
     export: dict[str, Any],
+    chat_id: int,
 ) -> Iterator[tuple[Any, ...]]:
-    chat_id = int(export["id"])
     for raw in export.get("messages", []):
         if raw.get("type") != "message":
             continue
@@ -33,8 +41,8 @@ def iter_message_rows(
 
         edited = raw.get("edited_unixtime")
         yield (
-            int(raw["id"]),
             chat_id,
+            int(raw["id"]),
             int(raw["date_unixtime"]),
             raw.get("date", ""),
             raw.get("from"),
@@ -49,9 +57,10 @@ def import_export(
     json_path: Path,
     db_path: Path,
     *,
-    username: str | None = "distillate_club_chat",
+    username: str | None = None,
     replace: bool = False,
-) -> dict[str, int]:
+    append: bool = False,
+) -> dict[str, int | str | float]:
     if replace and db_path.exists():
         db_path.unlink()
 
@@ -61,38 +70,50 @@ def import_export(
 
     chat_id = int(export["id"])
     chat_name = export.get("name", "")
+    chat_type = export.get("type", "")
+    label = default_label(chat_type)
 
     conn = connect(db_path)
     try:
-        conn.execute("DELETE FROM messages")
-        conn.execute("DELETE FROM chat_meta")
+        existing_count = count_messages(conn)
+        if existing_count and not append and not replace:
+            raise RuntimeError(
+                "Database already has messages. Use --append to add a source "
+                "or --replace to rebuild from scratch."
+            )
 
-        set_meta(conn, "chat_id", str(chat_id))
-        set_meta(conn, "chat_name", chat_name)
-        set_meta(conn, "chat_type", export.get("type", ""))
-        if username:
-            set_meta(conn, "username", username.lstrip("@"))
-        set_meta(conn, "source_json", str(json_path.resolve()))
-        set_meta(conn, "imported_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        conn.execute(
+            """
+            INSERT INTO sources(chat_id, name, type, username, label)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                name = excluded.name,
+                type = excluded.type,
+                username = excluded.username,
+                label = excluded.label
+            """,
+            (chat_id, chat_name, chat_type, username.lstrip("@") if username else None, label),
+        )
+
+        conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
 
         insert_sql = """
-            INSERT OR REPLACE INTO messages (
-                id, chat_id, date_unixtime, date_iso, from_name, from_id,
+            INSERT INTO messages (
+                chat_id, message_id, date_unixtime, date_iso, from_name, from_id,
                 reply_to_id, text, edited_unixtime
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         batch: list[tuple[Any, ...]] = []
         imported = 0
-        skipped = 0
 
-        for row in iter_message_rows(export):
+        for row in iter_message_rows(export, chat_id):
             batch.append(row)
             if len(batch) >= BATCH_SIZE:
                 conn.executemany(insert_sql, batch)
                 imported += len(batch)
                 batch.clear()
-                print(f"  imported {imported:,} messages...", flush=True)
+                print(f"  [{label}] imported {imported:,} messages...", flush=True)
 
         if batch:
             conn.executemany(insert_sql, batch)
@@ -100,19 +121,23 @@ def import_export(
 
         skipped = len(export.get("messages", [])) - imported
 
-        print("  rebuilding FTS index...", flush=True)
+        print(f"  [{label}] rebuilding FTS index...", flush=True)
         rebuild_fts(conn)
+
+        set_meta(conn, "imported_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        set_meta(conn, "message_count", str(count_messages(conn)))
+        set_meta(conn, "last_import", f"{label}:{json_path.name}")
         conn.commit()
 
         elapsed = time.perf_counter() - started
-        stats = {
+        return {
             "imported": imported,
             "skipped": skipped,
             "total_in_json": len(export.get("messages", [])),
+            "source": label,
+            "chat_id": chat_id,
             "elapsed_sec": round(elapsed, 1),
+            "total_in_db": count_messages(conn),
         }
-        set_meta(conn, "message_count", str(imported))
-        conn.commit()
-        return stats
     finally:
         conn.close()

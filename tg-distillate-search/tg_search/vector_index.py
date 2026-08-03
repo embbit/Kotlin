@@ -21,13 +21,13 @@ META_BUILT_AT = "vectors_built_at"
 
 @dataclass
 class VectorIndex:
-    ids: np.ndarray
+    rowids: np.ndarray
     dates: np.ndarray
-    embeddings: np.ndarray  # (N, D) float32, L2-normalized rows
+    embeddings: np.ndarray
 
     @property
     def count(self) -> int:
-        return len(self.ids)
+        return len(self.rowids)
 
     @classmethod
     def load(cls, db_path: Path) -> VectorIndex | None:
@@ -40,10 +40,10 @@ class VectorIndex:
 
             rows = conn.execute(
                 """
-                SELECT v.message_id, m.date_unixtime, v.embedding
+                SELECT v.message_rowid, m.date_unixtime, v.embedding
                 FROM message_vectors v
-                JOIN messages m ON m.id = v.message_id
-                ORDER BY v.message_id
+                JOIN messages m ON m.rowid = v.message_rowid
+                ORDER BY v.message_rowid
                 """
             ).fetchall()
         finally:
@@ -54,17 +54,17 @@ class VectorIndex:
 
         dim = len(rows[0]["embedding"]) // 4
         n = len(rows)
-        ids = np.empty(n, dtype=np.int64)
+        rowids = np.empty(n, dtype=np.int64)
         dates = np.empty(n, dtype=np.int64)
         embeddings = np.empty((n, dim), dtype=np.float32)
 
         for i, row in enumerate(rows):
-            ids[i] = row["message_id"]
+            rowids[i] = row["message_rowid"]
             dates[i] = row["date_unixtime"]
             embeddings[i] = np.frombuffer(row["embedding"], dtype=np.float32, count=dim)
 
         cls._normalize_rows(embeddings)
-        return cls(ids=ids, dates=dates, embeddings=embeddings)
+        return cls(rowids=rowids, dates=dates, embeddings=embeddings)
 
     @staticmethod
     def _normalize_rows(matrix: np.ndarray) -> None:
@@ -89,7 +89,7 @@ class VectorIndex:
             top_idx = np.argpartition(-scores, limit)[:limit]
             top_idx = top_idx[np.argsort(-scores[top_idx])]
 
-        return [(int(self.ids[i]), float(scores[i])) for i in top_idx]
+        return [(int(self.rowids[i]), float(scores[i])) for i in top_idx]
 
 
 def build_vectors(
@@ -98,7 +98,7 @@ def build_vectors(
     model_name: str = DEFAULT_MODEL,
     batch_size: int = BATCH_SIZE,
     replace: bool = False,
-) -> dict[str, int | str]:
+) -> dict[str, int | str | float]:
     conn = connect(db_path)
     try:
         conn.executescript(VECTOR_SCHEMA_SQL)
@@ -106,14 +106,14 @@ def build_vectors(
             conn.execute("DELETE FROM message_vectors")
 
         existing = conn.execute(
-            "SELECT message_id FROM message_vectors"
+            "SELECT message_rowid FROM message_vectors"
         ).fetchall()
-        done = {row["message_id"] for row in existing}
+        done = {row["message_rowid"] for row in existing}
 
         rows = conn.execute(
-            "SELECT id, text FROM messages ORDER BY id"
+            "SELECT rowid, text FROM messages ORDER BY rowid"
         ).fetchall()
-        pending = [row for row in rows if row["id"] not in done]
+        pending = [row for row in rows if row["rowid"] not in done]
 
         if not pending and done:
             return {
@@ -136,9 +136,9 @@ def build_vectors(
                 dim = len(vectors[0])
 
             conn.executemany(
-                "INSERT OR REPLACE INTO message_vectors(message_id, embedding) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO message_vectors(message_rowid, embedding) VALUES (?, ?)",
                 [
-                    (batch[i]["id"], np.asarray(vectors[i], dtype=np.float32).tobytes())
+                    (batch[i]["rowid"], np.asarray(vectors[i], dtype=np.float32).tobytes())
                     for i in range(len(batch))
                 ],
             )

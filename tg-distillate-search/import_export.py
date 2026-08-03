@@ -28,8 +28,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--username",
-        default="distillate_club_chat",
-        help="Public chat username for t.me links (default: distillate_club_chat)",
+        required=True,
+        help="Public @username for t.me links (e.g. distillate_club or distillate_club_chat)",
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Add/update this source in an existing database",
     )
     parser.add_argument(
         "--replace",
@@ -38,22 +43,32 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.append and args.replace:
+        print("Error: use either --append or --replace, not both", file=sys.stderr)
+        return 1
+
     if not args.json_path.is_file():
         print(f"Error: file not found: {args.json_path}", file=sys.stderr)
         return 1
 
     print(f"Importing {args.json_path} → {args.output}")
-    stats = import_export(
-        args.json_path,
-        args.output,
-        username=args.username,
-        replace=args.replace,
-    )
+    try:
+        stats = import_export(
+            args.json_path,
+            args.output,
+            username=args.username,
+            replace=args.replace,
+            append=args.append,
+        )
+    except RuntimeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
     print(
-        f"Done: {stats['imported']:,} messages indexed "
-        f"({stats['total_in_json']:,} in JSON, "
-        f"{stats['skipped']:,} skipped) in {stats['elapsed_sec']}s"
+        f"Done [{stats['source']}]: +{stats['imported']:,} messages "
+        f"({stats['total_in_json']:,} in JSON, {stats['skipped']:,} skipped)"
     )
+    print(f"Total in DB: {stats['total_in_db']:,} · {stats['elapsed_sec']}s")
     print(f"Database: {args.output.resolve()}")
     return 0
 

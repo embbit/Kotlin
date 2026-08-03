@@ -16,7 +16,10 @@ class TestFormatHits(unittest.TestCase):
 
     def test_hit_with_link(self) -> None:
         hit = SearchHit(
-            id=105,
+            rowid=1,
+            message_id=105,
+            chat_id=1663164507,
+            source_label="чат",
             date_iso="2022-09-27T15:33:14",
             date_unixtime=1664281994,
             from_name="Viktor",
@@ -27,8 +30,9 @@ class TestFormatHits(unittest.TestCase):
         )
         text = format_hits([hit], "брожение")
         self.assertIn("Viktor", text)
+        self.assertIn("[чат]", text)
         self.assertIn("distillate_club_chat/105", text)
-        self.assertIn("открыть в чате", text)
+        self.assertIn("открыть", text)
 
 
 if __name__ == "__main__":

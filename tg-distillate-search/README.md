@@ -4,11 +4,30 @@ Tools for searching the @distillate_club_chat archive.
 
 ## 1. Import (Mac)
 
+**Чат** (уже есть) + **канал** @distillate_club — два отдельных экспорта из Telegram Desktop.
+
 ```bash
 cd tg-distillate-search
-python3 import_export.py ~/Downloads/ChatExport_2026-07-31/result.json -o distillate.db
+
+# Первый источник (чат) — полная база
+python3 import_export.py ~/Downloads/ChatExport_.../result.json \
+  -o distillate.db --username distillate_club_chat --replace
+
+# Канал — добавить в ту же базу
+python3 import_export.py ~/Downloads/ChannelExport_.../result.json \
+  -o distillate.db --username distillate_club --append
+
+# Пересобрать векторы для новых постов канала
+python3 build_vectors.py -d distillate.db
+
 python3 search_cli.py дефлегматор
 ```
+
+| Флаг | Значение |
+|------|----------|
+| `--username` | @username для ссылок (`distillate_club` или `distillate_club_chat`) |
+| `--replace` | Удалить базу и импортировать заново (только первый раз) |
+| `--append` | Добавить/обновить источник в существующую базу |
 
 ## 2. Telegram bot (VPS)
 
@@ -101,5 +120,5 @@ python3 -m unittest discover -s tests -v
 ## Roadmap
 
 - [ ] Telethon incremental sync
-- [ ] Vector / semantic search
+- [x] Vector / semantic search + recency
 - [ ] Optional LLM summary

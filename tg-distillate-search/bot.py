@@ -18,7 +18,7 @@ except ImportError:
     pass
 
 from tg_search.config import BotConfig
-from tg_search.db import connect, get_meta
+from tg_search.db import connect, count_messages, get_meta, list_sources
 from tg_search.format import _esc, format_hits
 from tg_search.search import search
 from tg_search.vector_index import VectorIndex
@@ -77,17 +77,21 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     conn = connect(config.db_path)
     try:
-        count = get_meta(conn, "message_count") or "?"
-        chat_name = get_meta(conn, "chat_name") or "?"
+        count = count_messages(conn)
         imported = get_meta(conn, "imported_at") or "?"
         vectors = get_meta(conn, "vector_count") or "0"
+        sources = list_sources(conn)
     finally:
         conn.close()
 
+    src_lines = [
+        f"• {_esc(s['label'])}: {_esc(s['name'])} (@{_esc(s['username'] or '—')})"
+        for s in sources
+    ]
     text = (
-        f"<b>{_esc(chat_name)}</b>\n"
         f"Сообщений в индексе: <b>{count}</b>\n"
         f"Векторов: <b>{vectors}</b>\n"
+        f"Источники:\n" + "\n".join(src_lines) + "\n"
         f"Импорт: {_esc(imported)}"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
