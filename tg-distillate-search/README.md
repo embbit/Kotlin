@@ -141,9 +141,11 @@ Search = **lemmatized FTS + vectors + recency** (newer messages rank higher).
 | `дефлегматор` | Search (first page + links, recent first) |
 | **Дальше ➡️** / **Стоп** | Добавить ещё результаты / убрать кнопки (при переполнении — новое сообщение) |
 | `/start` | Help |
-| `/stats` | Archive size, vectors, import date |
+| `/stats` | Archive size, lemmas, **vector build progress** (N / total), import date |
 
 Only users from `ALLOWED_USERNAMES` / `ALLOWED_USER_IDS` can use the bot.
+
+Default usernames in `.env.example`: `embbit`, `Kir_UA6CT`, `m_hrtz`. On VPS edit `/opt/distillate/.env` and restart the bot.
 
 ## Environment
 
