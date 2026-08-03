@@ -40,11 +40,49 @@ class SearchHit:
         return self.message_id
 
 
+WEIGHT_VECTOR = 0.40
+WEIGHT_FTS = 0.25
+WEIGHT_RECENCY = 0.35
+RECENCY_HALF_LIFE_DAYS = 90
+MIN_VECTOR_ONLY_SIM = 0.52
+RELEVANCE_SCORE_RATIO = 0.42
+
+
+def _query_words(raw: str) -> list[str]:
+    return re.findall(r"[\w\u0400-\u04FF]+", raw, flags=re.UNICODE)
+
+
 def _fts_query(raw: str) -> str:
-    words = re.findall(r"[\w\u0400-\u04FF]+", raw, flags=re.UNICODE)
+    words = _query_words(raw)
     if not words:
         return ""
     return " ".join(f'"{w}"' for w in words)
+
+
+def _select_candidates(
+    fts_map: dict[int, tuple[float, str]],
+    vector_map: dict[int, float],
+    words: list[str],
+) -> set[int]:
+    if not fts_map and not vector_map:
+        return set()
+    if not vector_map:
+        return set(fts_map)
+    # Single specific term: keep only literal FTS matches (vector re-ranks them).
+    if len(words) == 1 and fts_map:
+        return set(fts_map)
+    candidates = set(fts_map) | set(vector_map)
+    return {
+        rowid
+        for rowid in candidates
+        if rowid in fts_map or vector_map.get(rowid, -1.0) >= MIN_VECTOR_ONLY_SIM
+    }
+
+
+def _score_weights(words: list[str]) -> tuple[float, float, float]:
+    if len(words) == 1:
+        return 0.50, 0.30, 0.20
+    return WEIGHT_FTS, WEIGHT_VECTOR, WEIGHT_RECENCY
 
 
 def _recency_score(date_unixtime: int, now: int | None = None) -> float:
@@ -138,6 +176,7 @@ def search_page(
     conn = connect(db_path)
     try:
         pool = min(max((offset + limit) * 3, 50), 500)
+        words = _query_words(query)
 
         fts_map = _fts_hits(conn, query, pool=pool)
         vector_map: dict[int, float] = {}
@@ -145,13 +184,14 @@ def search_page(
             for rowid, sim in vector_index.search(query, limit=pool):
                 vector_map[rowid] = sim
 
-        candidate_rowids = set(fts_map) | set(vector_map)
+        candidate_rowids = _select_candidates(fts_map, vector_map, words)
         if not candidate_rowids:
             return SearchPage(hits=[], has_more=False, offset=offset)
 
         messages = _fetch_messages(conn, list(candidate_rowids))
         now = int(time.time())
         scored: list[SearchHit] = []
+        w_fts, w_vec, w_rec = _score_weights(words)
 
         for rowid in candidate_rowids:
             row = messages.get(rowid)
@@ -169,11 +209,11 @@ def search_page(
                 continue
 
             if vector_index is None:
-                total = WEIGHT_FTS * f + (WEIGHT_RECENCY + WEIGHT_VECTOR) * r
+                total = w_fts * f + (w_rec + w_vec) * r
             elif rowid not in fts_map:
-                total = WEIGHT_VECTOR * v + (WEIGHT_FTS + WEIGHT_RECENCY) * r
+                total = w_vec * v + (w_fts + w_rec) * r
             else:
-                total = WEIGHT_VECTOR * v + WEIGHT_FTS * f + WEIGHT_RECENCY * r
+                total = w_vec * v + w_fts * f + w_rec * r
 
             scored.append(
                 SearchHit(
@@ -193,6 +233,9 @@ def search_page(
             )
 
         scored.sort(key=lambda h: (-h.score, -h.date_unixtime))
+        if scored:
+            floor = scored[0].score * RELEVANCE_SCORE_RATIO
+            scored = [h for h in scored if h.score >= floor]
         page = scored[offset : offset + limit]
         has_more = len(scored) > offset + limit
         return SearchPage(hits=page, has_more=has_more, offset=offset)
