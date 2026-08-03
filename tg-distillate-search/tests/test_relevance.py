@@ -37,6 +37,11 @@ class TestCandidateSelection(unittest.TestCase):
         self.assertEqual(selected, {1, 2})
         self.assertNotIn(99, selected)
 
+    def test_single_word_no_vector_when_fts_empty(self) -> None:
+        vector = {99: 0.95, 100: 0.88}
+        selected = _select_candidates({}, vector, ["жиньжинья"])
+        self.assertEqual(selected, set())
+
     def test_multi_word_allows_strong_vector_only(self) -> None:
         fts = {1: (0.4, "snippet")}
         vector = {1: 0.3, 2: 0.7, 3: 0.4}
@@ -65,6 +70,27 @@ class TestSearchRelevance(unittest.TestCase):
             page = search_page(db, "колонну", limit=10, offset=0, vector_index=mock)
             for hit in page.hits:
                 self.assertIn("колонну", hit.text.lower())
+
+    def test_single_word_ignores_vector_only_noise(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "test.db"
+            import_export(CHAT_FIXTURE, db, username="distillate_club_chat")
+            import sqlite3
+
+            conn = sqlite3.connect(db)
+            conn.execute(
+                "INSERT INTO messages (chat_id, message_id, date_unixtime, date_iso, text, text_lemma) "
+                "VALUES (1663164507, 999, 1658492000, '2022-07-22', 'только гравицапа тут', 'только гравицапа тут')"
+            )
+            conn.commit()
+            grav_rowid = conn.execute(
+                "SELECT rowid FROM messages WHERE message_id = 999"
+            ).fetchone()[0]
+            conn.close()
+
+            mock = MockVectorIndex([(grav_rowid, 0.99)])
+            page = search_page(db, "жиньжинья", limit=5, offset=0, vector_index=mock)
+            self.assertEqual(page.hits, [])
 
     def test_score_ratio_constant_sane(self) -> None:
         self.assertGreater(RELEVANCE_SCORE_RATIO, 0.2)

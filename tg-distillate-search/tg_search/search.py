@@ -48,22 +48,51 @@ def _query_words(raw: str) -> list[str]:
     return re.findall(r"[\w\u0400-\u04FF]+", raw, flags=re.UNICODE)
 
 
-def _fts_query(raw: str, *, lemmatize: bool) -> str:
+def _fts_query(raw: str, *, lemmatize: bool, prefix: bool = False) -> str:
     words = _query_words(raw)
     if not words:
         return ""
     if lemmatize:
         words = [lemmatize_word(w) for w in words]
+    if len(words) == 1 and prefix:
+        word = words[0]
+        if len(word) < 3:
+            return f'"{word}"'
+        return f"{word}*"
     return " ".join(f'"{w}"' for w in words)
+
+
+def _single_word_variants(word: str) -> set[str]:
+    variants = {word.lower()}
+    lemma = lemmatize_word(word).lower()
+    variants.add(lemma)
+    return variants
+
+
+def _text_matches_single_word(text: str, word: str) -> bool:
+    lower = text.lower()
+    if word.lower() in lower:
+        return True
+    query_lemma = lemmatize_word(word).lower()
+    if query_lemma in lower:
+        return True
+    for token in _query_words(text):
+        if lemmatize_word(token).lower() == query_lemma:
+            return True
+    return False
 
 
 def _make_snippet(text: str, words: list[str], *, max_len: int = 200) -> str:
     lower = text.lower()
+    needles = []
     for word in words:
-        idx = lower.find(word.lower())
+        needles.append(word.lower())
+        needles.extend(_single_word_variants(word))
+    for needle in needles:
+        idx = lower.find(needle)
         if idx >= 0:
             start = max(0, idx - 60)
-            end = min(len(text), idx + len(word) + 100)
+            end = min(len(text), idx + len(needle) + 100)
             chunk = text[start:end]
             if start > 0:
                 chunk = "… " + chunk
@@ -80,10 +109,10 @@ def _select_candidates(
 ) -> set[int]:
     if not fts_map and not vector_map:
         return set()
-    if not vector_map:
+    # Single-word queries: FTS only — vectors must not substitute unrelated terms.
+    if len(words) == 1:
         return set(fts_map)
-    # Single specific term: keep only literal FTS matches (vector re-ranks them).
-    if len(words) == 1 and fts_map:
+    if not vector_map:
         return set(fts_map)
     candidates = set(fts_map) | set(vector_map)
     return {
@@ -129,18 +158,13 @@ def _fetch_messages(conn: sqlite3.Connection, rowids: list[int]) -> dict[int, sq
     return {row["rowid"]: row for row in rows}
 
 
-def _fts_hits(
+def _run_fts_query(
     conn: sqlite3.Connection,
-    query: str,
+    fts_q: str,
+    words: list[str],
     *,
     pool: int,
-    lemmatize: bool,
 ) -> dict[int, tuple[float, str]]:
-    words = _query_words(query)
-    fts_q = _fts_query(query, lemmatize=lemmatize)
-    if not fts_q:
-        return {}
-
     rows = conn.execute(
         """
         SELECT
@@ -155,7 +179,6 @@ def _fts_hits(
         """,
         (fts_q, pool),
     ).fetchall()
-
     return {
         row["rowid"]: (
             _fts_score(row["fts_rank"]),
@@ -163,6 +186,57 @@ def _fts_hits(
         )
         for row in rows
     }
+
+
+def _like_hits(
+    conn: sqlite3.Connection,
+    word: str,
+    *,
+    pool: int,
+) -> dict[int, tuple[float, str]]:
+    rows = conn.execute(
+        """
+        SELECT rowid, text
+        FROM messages
+        WHERE lower(text) LIKE ?
+        ORDER BY date_unixtime DESC
+        LIMIT ?
+        """,
+        (f"%{word.lower()}%", pool),
+    ).fetchall()
+    return {
+        int(row["rowid"]): (
+            0.5,
+            _make_snippet(row["text"], [word]),
+        )
+        for row in rows
+        if _text_matches_single_word(row["text"], word)
+    }
+
+
+def _fts_hits(
+    conn: sqlite3.Connection,
+    query: str,
+    *,
+    pool: int,
+    lemmatize: bool,
+) -> dict[int, tuple[float, str]]:
+    words = _query_words(query)
+    fts_q = _fts_query(query, lemmatize=lemmatize)
+    if not fts_q:
+        return {}
+
+    hits = _run_fts_query(conn, fts_q, words, pool=pool)
+
+    if len(words) == 1 and not hits:
+        prefix_q = _fts_query(query, lemmatize=lemmatize, prefix=True)
+        if prefix_q != fts_q:
+            hits = _run_fts_query(conn, prefix_q, words, pool=pool)
+
+    if len(words) == 1 and not hits:
+        hits = _like_hits(conn, words[0], pool=pool)
+
+    return hits
 
 
 @dataclass
@@ -256,6 +330,9 @@ def search_page(
                     score=total,
                 )
             )
+
+        if len(words) == 1:
+            scored = [h for h in scored if _text_matches_single_word(h.text, words[0])]
 
         scored.sort(key=lambda h: (-h.score, -h.date_unixtime))
         if scored:
