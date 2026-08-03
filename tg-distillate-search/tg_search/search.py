@@ -174,16 +174,9 @@ def _run_fts_query(
     words: list[str],
     *,
     pool: int,
-    chat_id: int | None = None,
 ) -> dict[int, tuple[float, str]]:
-    chat_clause = "AND m.chat_id = ?" if chat_id is not None else ""
-    params: list[object] = [fts_q]
-    if chat_id is not None:
-        params.append(chat_id)
-    params.append(pool)
-
     rows = conn.execute(
-        f"""
+        """
         SELECT
             m.rowid,
             rank AS fts_rank,
@@ -191,11 +184,10 @@ def _run_fts_query(
         FROM messages_fts fts
         JOIN messages m ON m.rowid = fts.rowid
         WHERE messages_fts MATCH ?
-        {chat_clause}
         ORDER BY rank
         LIMIT ?
         """,
-        params,
+        (fts_q, pool),
     ).fetchall()
     return {
         row["rowid"]: (
@@ -212,25 +204,17 @@ def _like_hits(
     *,
     pool: int,
     prefix: str | None = None,
-    chat_id: int | None = None,
 ) -> dict[int, tuple[float, str]]:
     needle = (prefix or word).lower()
-    chat_clause = "AND chat_id = ?" if chat_id is not None else ""
-    params: list[object] = [f"%{needle}%"]
-    if chat_id is not None:
-        params.append(chat_id)
-    params.append(pool * 4)
-
     rows = conn.execute(
-        f"""
+        """
         SELECT rowid, text
         FROM messages
         WHERE lower(text) LIKE ?
-        {chat_clause}
         ORDER BY date_unixtime DESC
         LIMIT ?
         """,
-        params,
+        (f"%{needle}%", pool * 4),
     ).fetchall()
     hits: dict[int, tuple[float, str]] = {}
     for row in rows:
@@ -245,32 +229,12 @@ def _like_hits(
     return hits
 
 
-def _filter_vector_map(
-    conn: sqlite3.Connection,
-    vector_map: dict[int, float],
-    chat_id: int | None,
-) -> dict[int, float]:
-    if chat_id is None or not vector_map:
-        return vector_map
-    rowids = list(vector_map)
-    placeholders = ",".join("?" * len(rowids))
-    allowed = {
-        int(row["rowid"])
-        for row in conn.execute(
-            f"SELECT rowid FROM messages WHERE rowid IN ({placeholders}) AND chat_id = ?",
-            (*rowids, chat_id),
-        ).fetchall()
-    }
-    return {rowid: sim for rowid, sim in vector_map.items() if rowid in allowed}
-
-
 def _fts_hits(
     conn: sqlite3.Connection,
     query: str,
     *,
     pool: int,
     lemmatize: bool,
-    chat_id: int | None = None,
 ) -> dict[int, tuple[float, str]]:
     words = _search_words(query, lemmatize=lemmatize)
     if not words:
@@ -279,7 +243,7 @@ def _fts_hits(
     fts_q = _fts_query_words(words)
     hits: dict[int, tuple[float, str]] = {}
     if fts_q:
-        hits = _run_fts_query(conn, fts_q, words, pool=pool, chat_id=chat_id)
+        hits = _run_fts_query(conn, fts_q, words, pool=pool)
 
     if len(words) == 1:
         word = words[0]
@@ -287,22 +251,22 @@ def _fts_hits(
         if not hits:
             prefix_q = _fts_query_words(words, prefix=True)
             if prefix_q and prefix_q != fts_q:
-                hits = _run_fts_query(conn, prefix_q, words, pool=pool, chat_id=chat_id)
+                hits = _run_fts_query(conn, prefix_q, words, pool=pool)
 
         if not hits:
             for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
-                hits = _run_fts_query(conn, f"{pfx}*", words, pool=pool, chat_id=chat_id)
+                hits = _run_fts_query(conn, f"{pfx}*", words, pool=pool)
                 if hits:
                     break
 
         if not hits:
             for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
-                hits = _like_hits(conn, word, pool=pool, prefix=pfx, chat_id=chat_id)
+                hits = _like_hits(conn, word, pool=pool, prefix=pfx)
                 if hits:
                     break
 
         if not hits:
-            hits = _like_hits(conn, word, pool=pool, chat_id=chat_id)
+            hits = _like_hits(conn, word, pool=pool)
 
     return hits
 
@@ -321,15 +285,9 @@ def search(
     limit: int = 10,
     offset: int = 0,
     vector_index: VectorIndex | None = None,
-    chat_id: int | None = None,
 ) -> list[SearchHit]:
     return search_page(
-        db_path,
-        query,
-        limit=limit,
-        offset=offset,
-        vector_index=vector_index,
-        chat_id=chat_id,
+        db_path, query, limit=limit, offset=offset, vector_index=vector_index
     ).hits
 
 
@@ -340,7 +298,6 @@ def search_page(
     limit: int = 10,
     offset: int = 0,
     vector_index: VectorIndex | None = None,
-    chat_id: int | None = None,
 ) -> SearchPage:
     query = query.strip()
     if not query:
@@ -352,14 +309,11 @@ def search_page(
         use_lemmas = lemmas_indexed(conn)
         words = _search_words(query, lemmatize=use_lemmas)
 
-        fts_map = _fts_hits(
-            conn, query, pool=pool, lemmatize=use_lemmas, chat_id=chat_id
-        )
+        fts_map = _fts_hits(conn, query, pool=pool, lemmatize=use_lemmas)
         vector_map: dict[int, float] = {}
         if vector_index is not None:
             for rowid, sim in vector_index.search(query, limit=pool):
                 vector_map[rowid] = sim
-            vector_map = _filter_vector_map(conn, vector_map, chat_id)
 
         candidate_rowids = _select_candidates(fts_map, vector_map, words)
         if not candidate_rowids:

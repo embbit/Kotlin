@@ -14,9 +14,6 @@ def new_session_id() -> str:
     return secrets.token_hex(4)
 
 
-SOURCE_FILTER_KEY = "source_filter_chat_id"
-
-
 def save_session(
     user_data: dict[str, Any],
     session_id: str,
@@ -24,15 +21,9 @@ def save_session(
     query: str,
     shown: int,
     messages: int = 1,
-    chat_id: int | None = None,
 ) -> None:
     sessions = user_data.setdefault(SESSIONS_KEY, {})
-    sessions[session_id] = {
-        "query": query,
-        "shown": shown,
-        "messages": messages,
-        "chat_id": chat_id,
-    }
+    sessions[session_id] = {"query": query, "shown": shown, "messages": messages}
     if len(sessions) > 5:
         oldest = next(iter(sessions))
         del sessions[oldest]

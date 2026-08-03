@@ -142,11 +142,6 @@ Search = **lemmatized FTS + vectors + recency** (newer messages rank higher).
 | **Дальше ➡️** / **Стоп** | Добавить ещё результаты / убрать кнопки (при переполнении — новое сообщение) |
 | `/start` | Help |
 | `/stats` | Archive size, vectors, import date |
-| `/source` | Показать или задать фильтр: все / чат / канал |
-| `/source chat` | Искать только в чате (фильтр сохраняется) |
-| `/source channel` | Искать только в канале |
-| `/chat запрос` или `/чат запрос` | Разовый поиск только в чате |
-| `/channel запрос` или `/канал запрос` | Разовый поиск только в канале |
 
 Only users from `ALLOWED_USERNAMES` / `ALLOWED_USER_IDS` can use the bot.
 
