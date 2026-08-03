@@ -31,6 +31,11 @@ def main() -> int:
         return 1
 
     print(f"Building vectors for {args.db} …")
+    print(
+        "Tip: stop the bot first to avoid database locks:\n"
+        "  systemctl stop distillate-bot",
+        file=sys.stderr,
+    )
     stats = build_vectors(args.db, replace=args.replace)
     print(
         f"Done: +{stats['built']:,} new, {stats['total_vectors']:,} total, "

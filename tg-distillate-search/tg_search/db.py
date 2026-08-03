@@ -152,11 +152,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         set_meta(conn, "schema_version", SCHEMA_VERSION)
 
 
-def connect(db_path: Path) -> sqlite3.Connection:
+def connect(db_path: Path, *, timeout: float = 60.0) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=timeout)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 60000")
     ensure_schema(conn)
     return conn
 

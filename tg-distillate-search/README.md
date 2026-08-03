@@ -112,6 +112,7 @@ For an **existing** database, run once after deploy:
 
 ```bash
 pip install -r requirements.txt
+systemctl stop distillate-bot
 python3 build_lemmas.py -d /opt/distillate/distillate.db
 systemctl restart distillate-bot
 ```
@@ -124,6 +125,7 @@ Search then matches word forms: `сухопарник` finds `сухопарни
 
 ```bash
 pip install -r requirements.txt
+systemctl stop distillate-bot
 python3 build_vectors.py -d /opt/distillate/distillate.db
 systemctl restart distillate-bot
 ```

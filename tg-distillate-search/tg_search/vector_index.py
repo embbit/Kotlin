@@ -17,6 +17,37 @@ BATCH_SIZE = 128
 META_MODEL = "vector_model"
 META_DIM = "vector_dim"
 META_BUILT_AT = "vectors_built_at"
+LOCK_RETRIES = 12
+
+
+def _is_locked(exc: sqlite3.OperationalError) -> bool:
+    msg = str(exc).lower()
+    return "locked" in msg or "busy" in msg
+
+
+def _write_batch(
+    conn: sqlite3.Connection,
+    batch: list,
+    vectors: list,
+) -> None:
+    payload = [
+        (batch[i]["rowid"], np.asarray(vectors[i], dtype=np.float32).tobytes())
+        for i in range(len(batch))
+    ]
+    for attempt in range(LOCK_RETRIES):
+        try:
+            conn.executemany(
+                "INSERT OR REPLACE INTO message_vectors(message_rowid, embedding) VALUES (?, ?)",
+                payload,
+            )
+            conn.commit()
+            return
+        except sqlite3.OperationalError as exc:
+            if not _is_locked(exc) or attempt == LOCK_RETRIES - 1:
+                raise
+            wait = min(2**attempt, 30)
+            print(f"  database locked, retry in {wait}s …", flush=True)
+            time.sleep(wait)
 
 
 @dataclass
@@ -135,14 +166,7 @@ def build_vectors(
             if dim is None:
                 dim = len(vectors[0])
 
-            conn.executemany(
-                "INSERT OR REPLACE INTO message_vectors(message_rowid, embedding) VALUES (?, ?)",
-                [
-                    (batch[i]["rowid"], np.asarray(vectors[i], dtype=np.float32).tobytes())
-                    for i in range(len(batch))
-                ],
-            )
-            conn.commit()
+            _write_batch(conn, batch, vectors)
             built += len(batch)
             print(f"  embedded {built + len(done):,} / {len(rows):,}", flush=True)
 
