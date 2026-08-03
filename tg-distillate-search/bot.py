@@ -42,10 +42,22 @@ def _allowed(config: BotConfig, user_id: int | None) -> bool:
     return user_id is not None and user_id in config.allowed_user_ids
 
 
+async def _deny_access(update: Update) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    if user_id is not None:
+        await update.message.reply_text(
+            f"Доступ запрещён.\nВаш Telegram id: <code>{user_id}</code>\n"
+            "Передайте его администратору для whitelist.",
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await update.message.reply_text("Доступ запрещён.")
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.effective_user or not _allowed(config, update.effective_user.id):
-        await update.message.reply_text("Доступ запрещён.")
+        await _deny_access(update)
         return
     await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML)
 
@@ -53,7 +65,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.effective_user or not _allowed(config, update.effective_user.id):
-        await update.message.reply_text("Доступ запрещён.")
+        await _deny_access(update)
         return
 
     conn = connect(config.db_path)
@@ -77,7 +89,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_user:
         return
     if not _allowed(config, update.effective_user.id):
-        await update.message.reply_text("Доступ запрещён.")
+        await _deny_access(update)
         return
 
     query = (update.message.text or "").strip()
