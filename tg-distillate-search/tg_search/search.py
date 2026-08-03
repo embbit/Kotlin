@@ -13,6 +13,7 @@ from tg_search.db import connect
 from tg_search.import_json import message_link
 from tg_search.fuzzy import (
     best_match_needle,
+    proximity_match_ratio,
     short_prefixes,
     text_matches_multi_word,
     text_matches_query_word,
@@ -245,6 +246,19 @@ def _fts_hits(
     if fts_q:
         hits = _run_fts_query(conn, fts_q, words, pool=pool)
 
+    if len(words) >= 2:
+        near_distance = 8 + 3 * len(words)
+        quoted = " ".join(f'"{w}"' for w in words)
+        near_q = f"NEAR({quoted}, {near_distance})"
+        near_hits = _run_fts_query(conn, near_q, words, pool=pool)
+        for rowid, (score, snippet) in near_hits.items():
+            boosted = score * 1.8
+            if rowid in hits:
+                prev_score, _prev_snip = hits[rowid]
+                hits[rowid] = (max(prev_score, boosted), snippet)
+            else:
+                hits[rowid] = (boosted, snippet)
+
     if len(words) == 1:
         word = words[0]
 
@@ -345,6 +359,12 @@ def search_page(
                 total = w_vec * v + (w_fts + w_rec) * r
             else:
                 total = w_vec * v + w_fts * f + w_rec * r
+
+            if len(words) >= 3:
+                prox = proximity_match_ratio(
+                    row["text"], words, lemmatize_word=lemmatize_word
+                )
+                total *= 1.0 + 0.45 * prox
 
             scored.append(
                 SearchHit(

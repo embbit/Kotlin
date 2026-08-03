@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import math
 import re
 
 WORD_RE = re.compile(r"[\w\u0400-\u04FF]+", re.UNICODE)
 
 SHORT_PREFIX_MIN = 3
 SHORT_PREFIX_TRY = (5, 4, 3)
+PROXIMITY_WINDOW_BASE = 50
+PROXIMITY_WINDOW_PER_WORD = 20
+PROXIMITY_WINDOW_MAX = 160
 
 
 def levenshtein(a: str, b: str) -> int:
@@ -83,6 +87,71 @@ def count_content_matches(
     )
 
 
+def _token_spans(text: str) -> list[tuple[int, int, str]]:
+    return [(m.start(), m.end(), m.group()) for m in WORD_RE.finditer(text)]
+
+
+def proximity_window_chars(word_count: int) -> int:
+    if word_count <= 1:
+        return PROXIMITY_WINDOW_MAX
+    return min(
+        PROXIMITY_WINDOW_MAX,
+        PROXIMITY_WINDOW_BASE + PROXIMITY_WINDOW_PER_WORD * word_count,
+    )
+
+
+def proximity_match_ratio(
+    text: str,
+    words: list[str],
+    *,
+    lemmatize_word,
+    window: int | None = None,
+) -> float:
+    """Share of query words co-occurring inside the tightest character window."""
+    if not words:
+        return 1.0
+    if len(words) == 1:
+        return 1.0 if text_matches_query_word(text, words[0], lemmatize_word=lemmatize_word) else 0.0
+
+    window = window or proximity_window_chars(len(words))
+    tagged: list[tuple[int, int, int]] = []
+    for wi, word in enumerate(words):
+        for start, end, token in _token_spans(text):
+            if text_matches_query_word(token, word, lemmatize_word=lemmatize_word):
+                tagged.append((start, end, wi))
+
+    if not tagged:
+        return 0.0
+
+    tagged.sort()
+    best = 0
+    for i, (start, _end, _wi) in enumerate(tagged):
+        words_in_window: set[int] = set()
+        for pos_start, pos_end, wi in tagged[i:]:
+            if pos_start - start > window:
+                break
+            words_in_window.add(wi)
+        best = max(best, len(words_in_window))
+
+    return best / len(words)
+
+
+def multi_word_match_threshold(word_count: int) -> int:
+    if word_count <= 2:
+        return word_count
+    if word_count == 3:
+        return 2
+    return max(3, math.ceil(word_count * 0.75))
+
+
+def min_proximity_ratio(word_count: int) -> float:
+    if word_count <= 2:
+        return 0.0
+    if word_count == 3:
+        return 0.67
+    return 0.6
+
+
 def text_matches_multi_word(
     text: str,
     words: list[str],
@@ -94,8 +163,14 @@ def text_matches_multi_word(
     if len(words) == 1:
         return text_matches_query_word(text, words[0], lemmatize_word=lemmatize_word)
     matches = count_content_matches(text, words, lemmatize_word=lemmatize_word)
-    needed = len(words) if len(words) <= 2 else max(2, (len(words) + 1) // 2)
-    return matches >= needed
+    needed = multi_word_match_threshold(len(words))
+    if matches < needed:
+        return False
+    if len(words) >= 3:
+        return proximity_match_ratio(text, words, lemmatize_word=lemmatize_word) >= min_proximity_ratio(
+            len(words)
+        )
+    return True
 
 
 def best_match_needle(text: str, word: str) -> str | None:
