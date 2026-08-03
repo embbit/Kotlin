@@ -7,11 +7,21 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _parse_usernames(raw: str) -> frozenset[str]:
+    names: set[str] = set()
+    for part in raw.split(","):
+        name = part.strip().lstrip("@").lower()
+        if name:
+            names.add(name)
+    return frozenset(names)
+
+
 @dataclass(frozen=True)
 class BotConfig:
     token: str
     db_path: Path
     allowed_user_ids: frozenset[int]
+    allowed_usernames: frozenset[str]
     search_limit: int
 
     @classmethod
@@ -21,10 +31,17 @@ class BotConfig:
             raise RuntimeError("BOT_TOKEN is not set")
 
         raw_ids = os.environ.get("ALLOWED_USER_IDS", "").strip()
-        if not raw_ids:
-            raise RuntimeError("ALLOWED_USER_IDS is not set (comma-separated Telegram user ids)")
+        allowed_ids = frozenset(
+            int(x.strip()) for x in raw_ids.split(",") if x.strip()
+        )
 
-        allowed = frozenset(int(x.strip()) for x in raw_ids.split(",") if x.strip())
+        raw_names = os.environ.get("ALLOWED_USERNAMES", "").strip()
+        allowed_names = _parse_usernames(raw_names)
+
+        if not allowed_ids and not allowed_names:
+            raise RuntimeError(
+                "Set ALLOWED_USER_IDS and/or ALLOWED_USERNAMES (comma-separated)"
+            )
 
         db_path = Path(os.environ.get("DB_PATH", "distillate.db"))
         search_limit = int(os.environ.get("SEARCH_LIMIT", "5"))
@@ -32,6 +49,7 @@ class BotConfig:
         return cls(
             token=token,
             db_path=db_path,
-            allowed_user_ids=allowed,
+            allowed_user_ids=allowed_ids,
+            allowed_usernames=allowed_names,
             search_limit=max(1, min(search_limit, 10)),
         )

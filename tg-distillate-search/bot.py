@@ -38,8 +38,13 @@ HELP_TEXT = (
 )
 
 
-def _allowed(config: BotConfig, user_id: int | None) -> bool:
-    return user_id is not None and user_id in config.allowed_user_ids
+def _allowed(config: BotConfig, user) -> bool:
+    if user is None:
+        return False
+    if user.id in config.allowed_user_ids:
+        return True
+    username = (user.username or "").lower()
+    return bool(username) and username in config.allowed_usernames
 
 
 async def _deny_access(update: Update) -> None:
@@ -56,7 +61,7 @@ async def _deny_access(update: Update) -> None:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
-    if not update.effective_user or not _allowed(config, update.effective_user.id):
+    if not update.effective_user or not _allowed(config, update.effective_user):
         await _deny_access(update)
         return
     await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML)
@@ -64,7 +69,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
-    if not update.effective_user or not _allowed(config, update.effective_user.id):
+    if not update.effective_user or not _allowed(config, update.effective_user):
         await _deny_access(update)
         return
 
@@ -88,7 +93,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.message or not update.effective_user:
         return
-    if not _allowed(config, update.effective_user.id):
+    if not _allowed(config, update.effective_user):
         await _deny_access(update)
         return
 
@@ -120,9 +125,10 @@ def main() -> int:
         return 1
 
     log.info(
-        "Starting bot db=%s allowed_users=%s",
+        "Starting bot db=%s allowed_ids=%s allowed_usernames=%s",
         config.db_path,
         len(config.allowed_user_ids),
+        len(config.allowed_usernames),
     )
 
     app = Application.builder().token(config.token).build()
