@@ -17,6 +17,9 @@ BATCH_SIZE = 128
 META_MODEL = "vector_model"
 META_DIM = "vector_dim"
 META_BUILT_AT = "vectors_built_at"
+META_BUILD_TOTAL = "vector_build_total"
+META_UPDATED_AT = "vectors_updated_at"
+META_IN_PROGRESS = "vector_build_in_progress"
 LOCK_RETRIES = 12
 
 
@@ -123,6 +126,29 @@ class VectorIndex:
         return [(int(self.rowids[i]), float(scores[i])) for i in top_idx]
 
 
+def count_vectors(conn: sqlite3.Connection) -> int:
+    row = conn.execute("SELECT COUNT(*) AS c FROM message_vectors").fetchone()
+    return int(row["c"]) if row else 0
+
+
+def vector_build_stats(conn: sqlite3.Connection, *, message_count: int | None = None) -> dict[str, int | str | bool | None]:
+    from tg_search.db import count_messages, get_meta
+
+    messages = message_count if message_count is not None else count_messages(conn)
+    built = count_vectors(conn)
+    build_total_raw = get_meta(conn, META_BUILD_TOTAL)
+    target = int(build_total_raw) if build_total_raw else messages
+    return {
+        "built": built,
+        "total": target,
+        "messages": messages,
+        "in_progress": get_meta(conn, META_IN_PROGRESS) == "1",
+        "updated_at": get_meta(conn, META_UPDATED_AT),
+        "built_at": get_meta(conn, META_BUILT_AT),
+        "model": get_meta(conn, META_MODEL),
+    }
+
+
 def build_vectors(
     db_path: Path,
     *,
@@ -135,6 +161,7 @@ def build_vectors(
         conn.executescript(VECTOR_SCHEMA_SQL)
         if replace:
             conn.execute("DELETE FROM message_vectors")
+            set_meta(conn, "vector_count", "0")
 
         existing = conn.execute(
             "SELECT message_rowid FROM message_vectors"
@@ -147,28 +174,49 @@ def build_vectors(
         pending = [row for row in rows if row["rowid"] not in done]
 
         if not pending and done:
+            set_meta(conn, META_IN_PROGRESS, "0")
+            set_meta(conn, META_BUILD_TOTAL, str(len(rows)))
+            set_meta(conn, "vector_count", str(len(done)))
+            conn.commit()
             return {
                 "built": 0,
                 "total_vectors": len(done),
                 "model": get_meta(conn, META_MODEL) or model_name,
             }
 
+        set_meta(conn, META_BUILD_TOTAL, str(len(rows)))
+        set_meta(conn, META_IN_PROGRESS, "1")
+        set_meta(conn, "vector_count", str(len(done)))
+        conn.commit()
+
         started = time.perf_counter()
         built = 0
         dim: int | None = None
 
-        for offset in range(0, len(pending), batch_size):
-            batch = pending[offset : offset + batch_size]
-            texts = [row["text"] for row in batch]
-            vectors = embed_passages(texts, model_name=model_name)
-            if not vectors:
-                continue
-            if dim is None:
-                dim = len(vectors[0])
+        try:
+            for offset in range(0, len(pending), batch_size):
+                batch = pending[offset : offset + batch_size]
+                texts = [row["text"] for row in batch]
+                vectors = embed_passages(texts, model_name=model_name)
+                if not vectors:
+                    continue
+                if dim is None:
+                    dim = len(vectors[0])
 
-            _write_batch(conn, batch, vectors)
-            built += len(batch)
-            print(f"  embedded {built + len(done):,} / {len(rows):,}", flush=True)
+                _write_batch(conn, batch, vectors)
+                built += len(batch)
+                total_done = len(done) + built
+                set_meta(conn, "vector_count", str(total_done))
+                set_meta(
+                    conn,
+                    META_UPDATED_AT,
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                )
+                conn.commit()
+                print(f"  embedded {total_done:,} / {len(rows):,}", flush=True)
+        finally:
+            set_meta(conn, META_IN_PROGRESS, "0")
+            conn.commit()
 
         set_meta(conn, META_MODEL, model_name)
         if dim is not None:

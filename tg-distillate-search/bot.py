@@ -37,7 +37,7 @@ from tg_search.pagination import (
     save_session,
 )
 from tg_search.search import search_page
-from tg_search.vector_index import VectorIndex
+from tg_search.vector_index import VectorIndex, vector_build_stats
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -197,6 +197,44 @@ async def _send_search_page(
     await _send_html(anchor, chunks[-1].text, reply_markup=keyboard)
 
 
+def _fmt_num(n: int) -> str:
+    return f"{n:,}".replace(",", " ")
+
+
+def _format_vector_stats(stats: dict) -> str:
+    built = int(stats["built"])
+    total = int(stats["total"])
+    if total <= 0:
+        return "нет сообщений в индексе"
+
+    pct = built * 100 // total if total else 0
+    nums = f"{_fmt_num(built)} / {_fmt_num(total)}"
+
+    if built >= total:
+        status = f"<b>{nums}</b> ({pct}%) — готово"
+    elif stats["in_progress"]:
+        status = f"<b>{nums}</b> ({pct}%) — <i>идёт построение</i>"
+    elif built > 0:
+        status = f"<b>{nums}</b> ({pct}%) — не завершено"
+    else:
+        status = (
+            f"<b>0</b> / {_fmt_num(total)} — не построены "
+            f"(<code>build_vectors.py</code>)"
+        )
+
+    details: list[str] = []
+    if stats.get("updated_at") and (stats["in_progress"] or built < total):
+        details.append(f"обновлено {_esc(str(stats['updated_at']))}")
+    if stats.get("built_at") and built >= total:
+        details.append(f"завершено {_esc(str(stats['built_at']))}")
+    if stats.get("model") and built > 0:
+        details.append(f"модель {_esc(str(stats['model']))}")
+
+    if details:
+        return status + "\n  " + ", ".join(details)
+    return status
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.effective_user or not _allowed(config, update.effective_user):
@@ -215,9 +253,9 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         count = count_messages(conn)
         imported = get_meta(conn, "imported_at") or "?"
-        vectors = get_meta(conn, "vector_count") or "0"
         lemmas = get_meta(conn, "lemmas_indexed") or "0"
         sources = list_sources(conn)
+        vectors_line = _format_vector_stats(vector_build_stats(conn, message_count=count))
     finally:
         conn.close()
 
@@ -228,7 +266,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
         f"Сообщений в индексе: <b>{count}</b>\n"
         f"Леммы FTS: <b>{'да' if lemmas == '1' else 'нет — build_lemmas.py'}</b>\n"
-        f"Векторов: <b>{vectors}</b>\n"
+        f"Векторы: {vectors_line}\n"
         f"Источники:\n" + "\n".join(src_lines) + "\n"
         f"Импорт: {_esc(imported)}"
     )
