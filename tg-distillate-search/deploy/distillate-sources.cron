@@ -1,0 +1,4 @@
+# Daily sync of hrtz.store articles and @DistillateClub YouTube (04:00 UTC)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 4 * * * root /opt/distillate/tg-distillate-search/deploy/update-sources.cron

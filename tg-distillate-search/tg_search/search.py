@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tg_search.db import connect
-from tg_search.import_json import message_link
+from tg_search.document_links import hit_link
 from tg_search.fuzzy import (
     best_match_needle,
     proximity_match_ratio,
@@ -379,7 +379,7 @@ def search_page(
                     from_name=row["from_name"],
                     text=row["text"],
                     reply_to_id=row["reply_to_id"],
-                    link=message_link(row["username"], int(row["chat_id"]), int(row["message_id"])),
+                    link=hit_link(row),
                     snippet=snippet,
                     score=total,
                 )

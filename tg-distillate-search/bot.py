@@ -256,6 +256,9 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         lemmas = get_meta(conn, "lemmas_indexed") or "0"
         sources = list_sources(conn)
         vectors_line = _format_vector_stats(vector_build_stats(conn, message_count=count))
+        hrtz = get_meta(conn, "hrtz_article_count") or "0"
+        youtube = get_meta(conn, "youtube_video_count") or "0"
+        sources_updated = get_meta(conn, "external_sources_updated_at") or "—"
     finally:
         conn.close()
 
@@ -267,6 +270,8 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"Сообщений в индексе: <b>{count}</b>\n"
         f"Леммы FTS: <b>{'да' if lemmas == '1' else 'нет — build_lemmas.py'}</b>\n"
         f"Векторы: {vectors_line}\n"
+        f"Внешние источники: сайт <b>{hrtz}</b> статей, YouTube <b>{youtube}</b> видео "
+        f"(обновлено {_esc(sources_updated)})\n"
         f"Источники:\n" + "\n".join(src_lines) + "\n"
         f"Импорт: {_esc(imported)}"
     )

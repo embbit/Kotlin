@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS messages (
     text TEXT NOT NULL,
     text_lemma TEXT,
     edited_unixtime INTEGER,
+    url TEXT,
+    content_hash TEXT,
     UNIQUE(chat_id, message_id),
     FOREIGN KEY (chat_id) REFERENCES sources(chat_id)
 );
@@ -116,6 +118,14 @@ def _ensure_v3_columns(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE messages ADD COLUMN text_lemma TEXT")
 
 
+def _ensure_v4_columns(conn: sqlite3.Connection) -> None:
+    cols = _table_columns(conn, "messages")
+    if "url" not in cols:
+        conn.execute("ALTER TABLE messages ADD COLUMN url TEXT")
+    if "content_hash" not in cols:
+        conn.execute("ALTER TABLE messages ADD COLUMN content_hash TEXT")
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     if not _table_exists(conn, "messages"):
         conn.executescript(SCHEMA_SQL)
@@ -128,6 +138,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         cols = _table_columns(conn, "messages")
 
     _ensure_v3_columns(conn)
+    _ensure_v4_columns(conn)
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS chat_meta (

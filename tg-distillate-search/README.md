@@ -134,6 +134,29 @@ First run downloads embedding model (~100MB). ~105k messages: 30–90 min on CPU
 
 Search = **lemmatized FTS + vectors + recency** (newer messages rank higher).
 
+## 5. External sources (hrtz.store + YouTube)
+
+Articles from **https://hrtz.store/** (`/page*.html` from sitemap) and videos from **@DistillateClub** are indexed into the same database and appear in mixed search results with labels `[сайт]` and `[youtube]`.
+
+```bash
+# one-shot sync (FTS + incremental vectors for new chunks)
+python3 update_sources.py -d /opt/distillate/distillate.db
+
+# web or YouTube only
+python3 update_sources.py -d distillate.db --web-only
+python3 update_sources.py -d distillate.db --youtube-only
+```
+
+**Cron (daily 04:00 UTC)** on VPS:
+
+```bash
+sudo cp deploy/distillate-sources.cron /etc/cron.d/distillate-sources
+```
+
+Log: `/opt/distillate/update_sources.log`
+
+Telegram vectors are **not** rebuilt — only new/changed external chunks are embedded.
+
 ## Bot usage
 
 | Input | Action |
