@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from tg_search.search import search
+from tg_search.vector_index import VectorIndex
 
 
 def main() -> int:
@@ -31,6 +32,11 @@ def main() -> int:
         default=10,
         help="Max results (default: 10)",
     )
+    parser.add_argument(
+        "--fts-only",
+        action="store_true",
+        help="Skip vector search (FTS + recency only)",
+    )
     args = parser.parse_args()
 
     if not args.db.is_file():
@@ -38,7 +44,10 @@ def main() -> int:
         return 1
 
     q = " ".join(args.query)
-    hits = search(args.db, q, limit=args.limit)
+    vector_index = None if args.fts_only else VectorIndex.load(args.db)
+    if vector_index is None and not args.fts_only:
+        print("(vectors not built — using FTS + recency)", file=sys.stderr)
+    hits = search(args.db, q, limit=args.limit, vector_index=vector_index)
     if not hits:
         print("No results.")
         return 0

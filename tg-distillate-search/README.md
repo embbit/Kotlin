@@ -60,22 +60,35 @@ journalctl -u distillate-bot -f
 
 Adjust `User=` and paths in the unit file if needed.
 
+## 3. Build vectors (semantic + fresh results)
+
+```bash
+pip install -r requirements.txt
+python3 build_vectors.py -d /opt/distillate/distillate.db
+systemctl restart distillate-bot
+```
+
+First run downloads embedding model (~100MB). ~105k messages: 30–90 min on CPU.
+
+Search = **vectors + FTS + recency** (newer messages rank higher).
+
 ## Bot usage
 
 | Input | Action |
 |-------|--------|
-| `дефлегматор` | Search (up to 5 hits + links) |
+| `дефлегматор` | Search (up to 5 hits + links, recent first) |
 | `/start` | Help |
-| `/stats` | Archive size, import date |
+| `/stats` | Archive size, vectors, import date |
 
-Only user ids from `ALLOWED_USER_IDS` can use the bot.
+Only users from `ALLOWED_USERNAMES` / `ALLOWED_USER_IDS` can use the bot.
 
 ## Environment
 
 | Variable | Description |
 |----------|-------------|
 | `BOT_TOKEN` | From BotFather |
-| `ALLOWED_USER_IDS` | Comma-separated Telegram user ids |
+| `ALLOWED_USER_IDS` | Comma-separated Telegram user ids (optional) |
+| `ALLOWED_USERNAMES` | Comma-separated usernames without @ (optional) |
 | `DB_PATH` | Path to `distillate.db` |
 | `SEARCH_LIMIT` | Results per query (1–10, default 5) |
 

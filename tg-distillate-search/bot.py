@@ -21,6 +21,7 @@ from tg_search.config import BotConfig
 from tg_search.db import connect, get_meta
 from tg_search.format import _esc, format_hits
 from tg_search.search import search
+from tg_search.vector_index import VectorIndex
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -31,6 +32,7 @@ log = logging.getLogger("distillate-bot")
 HELP_TEXT = (
     "Поиск по архиву чата <b>Дистиллят &amp; Чат</b>.\n\n"
     "Отправьте слова запроса — верну до 5 сообщений со ссылками.\n"
+    "Приоритет у <b>свежих</b> сообщений (семантика + дата).\n"
     "Несколько слов = все должны встретиться (AND).\n\n"
     "Команды:\n"
     "/start — эта справка\n"
@@ -78,12 +80,14 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         count = get_meta(conn, "message_count") or "?"
         chat_name = get_meta(conn, "chat_name") or "?"
         imported = get_meta(conn, "imported_at") or "?"
+        vectors = get_meta(conn, "vector_count") or "0"
     finally:
         conn.close()
 
     text = (
         f"<b>{_esc(chat_name)}</b>\n"
         f"Сообщений в индексе: <b>{count}</b>\n"
+        f"Векторов: <b>{vectors}</b>\n"
         f"Импорт: {_esc(imported)}"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -104,7 +108,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     await update.message.chat.send_action("typing")
-    hits = search(config.db_path, query, limit=config.search_limit)
+    vector_index = context.bot_data.get("vector_index")
+    hits = search(config.db_path, query, limit=config.search_limit, vector_index=vector_index)
     text = format_hits(hits, query)
     await update.message.reply_text(
         text,
@@ -131,8 +136,15 @@ def main() -> int:
         len(config.allowed_usernames),
     )
 
+    vector_index = VectorIndex.load(config.db_path)
+    if vector_index:
+        log.info("Vector index loaded: %s embeddings", vector_index.count)
+    else:
+        log.warning("Vector index missing — run build_vectors.py (FTS + recency only)")
+
     app = Application.builder().token(config.token).build()
     app.bot_data["config"] = config
+    app.bot_data["vector_index"] = vector_index
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_start))
     app.add_handler(CommandHandler("stats", cmd_stats))

@@ -18,6 +18,7 @@ class TestFormatHits(unittest.TestCase):
         hit = SearchHit(
             id=105,
             date_iso="2022-09-27T15:33:14",
+            date_unixtime=1664281994,
             from_name="Viktor",
             text="full text",
             reply_to_id=94,
