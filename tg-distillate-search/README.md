@@ -123,7 +123,7 @@ Search = **vectors + FTS + recency** (newer messages rank higher).
 | Input | Action |
 |-------|--------|
 | `дефлегматор` | Search (first page + links, recent first) |
-| **Дальше ➡️** / **Стоп** | Добавить ещё результаты / убрать кнопки |
+| **Дальше ➡️** / **Стоп** | Добавить ещё результаты / убрать кнопки (при переполнении — новое сообщение) |
 | `/start` | Help |
 | `/stats` | Archive size, vectors, import date |
 
