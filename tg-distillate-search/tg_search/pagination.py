@@ -19,10 +19,10 @@ def save_session(
     session_id: str,
     *,
     query: str,
-    offset: int,
+    shown: int,
 ) -> None:
     sessions = user_data.setdefault(SESSIONS_KEY, {})
-    sessions[session_id] = {"query": query, "offset": offset}
+    sessions[session_id] = {"query": query, "shown": shown}
     if len(sessions) > 5:
         oldest = next(iter(sessions))
         del sessions[oldest]
@@ -54,3 +54,7 @@ def keyboard_spec(session_id: str, *, has_more: bool) -> list[list[tuple[str, st
             ("Стоп", f"{CALLBACK_STOP}{session_id}"),
         ]
     ]
+
+
+def next_shown(current_shown: int, page_size: int) -> int:
+    return current_shown + page_size

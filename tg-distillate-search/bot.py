@@ -26,12 +26,13 @@ except ImportError:
 
 from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
-from tg_search.format import _esc, format_hits
+from tg_search.format import MAX_MESSAGE_LEN, _esc, format_hits
 from tg_search.pagination import (
     clear_sessions,
     get_session,
     keyboard_spec,
     new_session_id,
+    next_shown,
     parse_callback,
     save_session,
 )
@@ -60,7 +61,7 @@ def _build_keyboard(session_id: str, *, has_more: bool) -> InlineKeyboardMarkup 
 HELP_TEXT = (
     "Поиск по архиву <b>Дистиллят</b> (канал + чат).\n\n"
     "Отправьте слова запроса — верну первые результаты со ссылками.\n"
-    "Кнопки <b>Дальше</b> / <b>Стоп</b> — листать дальше или закрыть.\n"
+    "Кнопка <b>Дальше</b> добавляет ещё результаты, <b>Стоп</b> — убирает кнопки.\n"
     "Приоритет у <b>свежих</b> сообщений.\n\n"
     "Команды:\n"
     "/start — справка\n"
@@ -94,26 +95,26 @@ async def _deny_callback(update: Update) -> None:
         await update.callback_query.answer("Доступ запрещён.", show_alert=True)
 
 
-def _run_search(context: ContextTypes.DEFAULT_TYPE, query: str, offset: int):
+def _run_search(context: ContextTypes.DEFAULT_TYPE, query: str, shown: int):
     config: BotConfig = context.bot_data["config"]
     vector_index = context.bot_data.get("vector_index")
     page_size = config.search_limit
     result = search_page(
         config.db_path,
         query,
-        limit=page_size,
-        offset=offset,
+        limit=shown,
+        offset=0,
         vector_index=vector_index,
     )
-    page_num = offset // page_size + 1
-    start_index = offset + 1
+    expanded = shown > page_size
     text = format_hits(
         result.hits,
         query,
-        start_index=start_index,
-        page=page_num,
+        show_total=expanded,
     )
-    return result, text, page_num, page_size
+    truncated = len(text) >= MAX_MESSAGE_LEN - 50
+    has_more = result.has_more and not truncated
+    return result, text, page_size, has_more
 
 
 async def _send_search_page(
@@ -121,14 +122,13 @@ async def _send_search_page(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     query: str,
-    offset: int,
+    shown: int,
     reply_fn,
-    edit_message=None,
 ) -> None:
-    result, text, page_num, page_size = _run_search(context, query, offset)
+    result, text, page_size, has_more = _run_search(context, query, shown)
 
     if not result.hits:
-        if offset > 0:
+        if shown > page_size:
             text = f"«{_esc(query)}»\n\nБольше результатов нет."
         await reply_fn(text, reply_markup=None)
         return
@@ -138,9 +138,9 @@ async def _send_search_page(
         context.user_data,
         session_id,
         query=query,
-        offset=offset + len(result.hits),
+        shown=len(result.hits),
     )
-    keyboard = _build_keyboard(session_id, has_more=result.has_more)
+    keyboard = _build_keyboard(session_id, has_more=has_more)
 
     await reply_fn(text, reply_markup=keyboard)
 
@@ -208,7 +208,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         context=context,
         chat_id=update.message.chat_id,
         query=query,
-        offset=0,
+        shown=config.search_limit,
         reply_fn=reply,
     )
 
@@ -247,10 +247,10 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     await callback.answer()
-    offset = session["offset"]
-    result, text, _, _ = _run_search(context, query, offset)
+    shown = next_shown(session["shown"], config.search_limit)
+    result, text, page_size, has_more = _run_search(context, query, shown)
 
-    if not result.hits:
+    if len(result.hits) <= session["shown"]:
         await callback.edit_message_text(
             f"«{_esc(query)}»\n\nБольше результатов нет.",
             parse_mode=ParseMode.HTML,
@@ -258,21 +258,13 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
-    new_offset = offset + len(result.hits)
     save_session(
         context.user_data,
         session_id,
         query=query,
-        offset=new_offset,
+        shown=len(result.hits),
     )
-    page_num = offset // config.search_limit + 1
-    text = format_hits(
-        result.hits,
-        query,
-        start_index=offset + 1,
-        page=page_num,
-    )
-    keyboard = _build_keyboard(session_id, has_more=result.has_more)
+    keyboard = _build_keyboard(session_id, has_more=has_more)
 
     await callback.edit_message_text(
         text,
@@ -294,10 +286,11 @@ def main() -> int:
         return 1
 
     log.info(
-        "Starting bot db=%s allowed_ids=%s allowed_usernames=%s",
+        "Starting bot db=%s allowed_ids=%s allowed_usernames=%s search_limit=%s",
         config.db_path,
         len(config.allowed_user_ids),
         len(config.allowed_usernames),
+        config.search_limit,
     )
 
     vector_index = VectorIndex.load(config.db_path)

@@ -20,11 +20,14 @@ def format_hits(
     *,
     start_index: int = 1,
     page: int = 1,
+    show_total: bool = False,
 ) -> str:
     if not hits:
         return f"По запросу «{_esc(query)}» ничего не найдено."
 
-    if page > 1:
+    if show_total:
+        lines = [f"«{_esc(query)}» · показано <b>{len(hits)}</b>", ""]
+    elif page > 1:
         lines = [f"«{_esc(query)}» · стр. <b>{page}</b>", ""]
     else:
         lines = [f"«{_esc(query)}»", ""]
