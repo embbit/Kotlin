@@ -6,6 +6,7 @@ import math
 import re
 
 WORD_RE = re.compile(r"[\w\u0400-\u04FF]+", re.UNICODE)
+WHOLE_WORD = r"(?<![\w\u0400-\u04FF]){}(?![\w\u0400-\u04FF])"
 
 SHORT_PREFIX_MIN = 3
 SHORT_PREFIX_TRY = (5, 4, 3)
@@ -38,6 +39,16 @@ def shared_prefix_len(a: str, b: str) -> int:
         if a[i] != b[i]:
             return i
     return n
+
+
+def _whole_word_re(word: str) -> re.Pattern[str]:
+    return re.compile(WHOLE_WORD.format(re.escape(word)), re.UNICODE | re.IGNORECASE)
+
+
+def _contains_whole_word(text: str, word: str) -> bool:
+    if len(word) < MIN_SUBSTRING_LEN:
+        return False
+    return _whole_word_re(word).search(text) is not None
 
 
 def fuzzy_token_match(query: str, token: str) -> bool:
@@ -90,13 +101,12 @@ def text_matches_query_word(
     lemmatize_word,
     allow_fuzzy: bool = True,
 ) -> bool:
-    lower = text.lower()
     w = word.lower()
-    if w in lower:
+    if _contains_whole_word(text, w):
         return True
 
     query_lemma = lemmatize_word(word).lower()
-    if len(query_lemma) >= MIN_SUBSTRING_LEN and query_lemma in lower:
+    if _contains_whole_word(text, query_lemma):
         return True
 
     for token in WORD_RE.findall(text):

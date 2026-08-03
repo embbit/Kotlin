@@ -330,6 +330,8 @@ def search_page(
                 vector_map[rowid] = sim
 
         candidate_rowids = _select_candidates(fts_map, vector_map, words)
+        if len(words) >= 3:
+            candidate_rowids = {rowid for rowid in candidate_rowids if rowid in fts_map}
         if not candidate_rowids:
             return SearchPage(hits=[], has_more=False, offset=offset)
 

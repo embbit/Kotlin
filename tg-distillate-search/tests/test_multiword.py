@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 
 import sqlite3
@@ -27,6 +28,14 @@ WHISKEY_BARREL_STORY = (
 )
 
 
+@dataclass
+class MockVectorIndex:
+    results: list[tuple[int, float]]
+
+    def search(self, query: str, *, limit: int = 100) -> list[tuple[int, float]]:
+        return self.results[:limit]
+
+
 class TestMultiWordSearch(unittest.TestCase):
     def test_content_words_drop_stopwords(self) -> None:
         words = content_words("нюансы в работе с новыми бочками", lemmatize_word)
@@ -39,6 +48,36 @@ class TestMultiWordSearch(unittest.TestCase):
         self.assertFalse(
             text_matches_multi_word(GLUE_POST, words, lemmatize_word=lemmatize_word)
         )
+
+    def test_glue_post_blocked_even_with_vector(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "test.db"
+            import_export(CHAT_FIXTURE, db, username="distillate_club_chat")
+            conn = sqlite3.connect(db)
+            conn.execute(
+                """
+                INSERT INTO messages (
+                    chat_id, message_id, date_unixtime, date_iso, text, text_lemma
+                ) VALUES (1663164507, 900, 1658499000, '2022-07-25', ?, ?)
+                """,
+                (GLUE_POST, lemmatize_text(GLUE_POST)),
+            )
+            conn.commit()
+            conn.execute("INSERT INTO messages_fts(messages_fts) VALUES('rebuild')")
+            conn.commit()
+            glue_rowid = conn.execute(
+                "SELECT rowid FROM messages WHERE message_id = 900"
+            ).fetchone()[0]
+            conn.close()
+
+            mock = MockVectorIndex([(glue_rowid, 0.99)])
+            hits = search(
+                db,
+                "нюансы работы с новыми бочками",
+                limit=10,
+                vector_index=mock,
+            )
+            self.assertEqual(hits, [])
 
     def test_scattered_story_fails_proximity(self) -> None:
         words = content_words("нюансы работы с новыми бочками", lemmatize_word)
