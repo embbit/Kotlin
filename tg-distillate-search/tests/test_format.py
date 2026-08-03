@@ -10,7 +10,7 @@ from tg_search.search import SearchHit
 
 class TestFormatHits(unittest.TestCase):
     def test_empty(self) -> None:
-        text = format_hits([], "колонна")
+        text = format_hits([], "колонна").text
         self.assertIn("ничего не найдено", text)
         self.assertIn("колонна", text)
 
@@ -28,7 +28,7 @@ class TestFormatHits(unittest.TestCase):
             link="https://t.me/distillate_club_chat/105",
             snippet="[брожение] в процессе",
         )
-        text = format_hits([hit], "брожение")
+        text = format_hits([hit], "брожение").text
         self.assertIn("Viktor", text)
         self.assertIn("[чат]", text)
         self.assertIn("distillate_club_chat/105", text)

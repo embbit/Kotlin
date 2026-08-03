@@ -26,7 +26,7 @@ except ImportError:
 
 from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
-from tg_search.format import MAX_MESSAGE_LEN, _esc, format_hits
+from tg_search.format import _esc, format_hits
 from tg_search.pagination import (
     clear_sessions,
     get_session,
@@ -107,14 +107,13 @@ def _run_search(context: ContextTypes.DEFAULT_TYPE, query: str, shown: int):
         vector_index=vector_index,
     )
     expanded = shown > page_size
-    text = format_hits(
+    formatted = format_hits(
         result.hits,
         query,
         show_total=expanded,
     )
-    truncated = len(text) >= MAX_MESSAGE_LEN - 50
-    has_more = result.has_more and not truncated
-    return result, text, page_size, has_more
+    has_more = result.has_more and not formatted.truncated
+    return result, formatted.text, page_size, has_more, formatted.fitted
 
 
 async def _send_search_page(
@@ -125,7 +124,7 @@ async def _send_search_page(
     shown: int,
     reply_fn,
 ) -> None:
-    result, text, page_size, has_more = _run_search(context, query, shown)
+    result, text, page_size, has_more, fitted = _run_search(context, query, shown)
 
     if not result.hits:
         if shown > page_size:
@@ -138,7 +137,7 @@ async def _send_search_page(
         context.user_data,
         session_id,
         query=query,
-        shown=len(result.hits),
+        shown=fitted,
     )
     keyboard = _build_keyboard(session_id, has_more=has_more)
 
@@ -248,9 +247,9 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     await callback.answer()
     shown = next_shown(session["shown"], config.search_limit)
-    result, text, page_size, has_more = _run_search(context, query, shown)
+    result, text, page_size, has_more, fitted = _run_search(context, query, shown)
 
-    if len(result.hits) <= session["shown"]:
+    if fitted <= session["shown"]:
         await callback.edit_message_text(
             f"«{_esc(query)}»\n\nБольше результатов нет.",
             parse_mode=ParseMode.HTML,
@@ -262,7 +261,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         context.user_data,
         session_id,
         query=query,
-        shown=len(result.hits),
+        shown=fitted,
     )
     keyboard = _build_keyboard(session_id, has_more=has_more)
 
