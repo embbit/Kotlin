@@ -292,6 +292,65 @@ def _fts_hits(
         if not hits:
             hits = _like_hits(conn, word, pool=pool)
 
+    if fts_q:
+        external = _external_fts_hits(
+            conn, fts_q, words, pool=min(max(pool // 3, 5), 15)
+        )
+        hits = _merge_fts_hits(hits, external)
+
+    return hits
+
+
+def _external_fts_hits(
+    conn: sqlite3.Connection,
+    fts_q: str,
+    words: list[str],
+    *,
+    pool: int,
+) -> dict[int, tuple[float, str]]:
+    """Top FTS hits from site/YouTube — not drowned out by chat volume."""
+    hits: dict[int, tuple[float, str]] = {}
+    for chat_id in (HRTZ_CHAT_ID, YOUTUBE_CHAT_ID):
+        rows = conn.execute(
+            """
+            SELECT
+                m.rowid,
+                rank AS fts_rank,
+                m.text AS message_text,
+                m.from_name
+            FROM messages_fts fts
+            JOIN messages m ON m.rowid = fts.rowid
+            WHERE messages_fts MATCH ? AND m.chat_id = ?
+            ORDER BY rank
+            LIMIT ?
+            """,
+            (fts_q, chat_id, pool),
+        ).fetchall()
+        for row in rows:
+            rowid = int(row["rowid"])
+            score = _fts_score(row["fts_rank"]) * 2.8
+            score *= title_topic_boost(
+                row["from_name"],
+                words,
+                lemmatize_word=lemmatize_word,
+            )
+            snippet = _make_snippet(row["message_text"], words)
+            prev = hits.get(rowid)
+            if prev is None or score > prev[0]:
+                hits[rowid] = (score, snippet)
+    return hits
+
+
+def _merge_fts_hits(
+    hits: dict[int, tuple[float, str]],
+    extra: dict[int, tuple[float, str]],
+) -> dict[int, tuple[float, str]]:
+    for rowid, (score, snippet) in extra.items():
+        if rowid in hits:
+            prev_score, _prev_snip = hits[rowid]
+            hits[rowid] = (max(prev_score, score), snippet)
+        else:
+            hits[rowid] = (score, snippet)
     return hits
 
 
