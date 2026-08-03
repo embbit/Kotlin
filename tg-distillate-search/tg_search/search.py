@@ -11,6 +11,7 @@ from pathlib import Path
 
 from tg_search.db import connect
 from tg_search.import_json import message_link
+from tg_search.fuzzy import best_match_needle, short_prefixes, text_matches_query_word
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
 from tg_search.vector_index import VectorIndex
@@ -64,31 +65,24 @@ def _fts_query(raw: str, *, lemmatize: bool, prefix: bool = False) -> str:
 
 def _single_word_variants(word: str) -> set[str]:
     variants = {word.lower()}
-    lemma = lemmatize_word(word).lower()
-    variants.add(lemma)
+    variants.add(lemmatize_word(word).lower())
     return variants
 
 
 def _text_matches_single_word(text: str, word: str) -> bool:
-    lower = text.lower()
-    if word.lower() in lower:
-        return True
-    query_lemma = lemmatize_word(word).lower()
-    if query_lemma in lower:
-        return True
-    for token in _query_words(text):
-        if lemmatize_word(token).lower() == query_lemma:
-            return True
-    return False
+    return text_matches_query_word(text, word, lemmatize_word=lemmatize_word)
 
 
 def _make_snippet(text: str, words: list[str], *, max_len: int = 200) -> str:
     lower = text.lower()
-    needles = []
+    needles: list[str] = []
     for word in words:
         needles.append(word.lower())
         needles.extend(_single_word_variants(word))
-    for needle in needles:
+        matched = best_match_needle(text, word)
+        if matched:
+            needles.append(matched)
+    for needle in dict.fromkeys(needles):
         idx = lower.find(needle)
         if idx >= 0:
             start = max(0, idx - 60)
@@ -193,7 +187,9 @@ def _like_hits(
     word: str,
     *,
     pool: int,
+    prefix: str | None = None,
 ) -> dict[int, tuple[float, str]]:
+    needle = (prefix or word).lower()
     rows = conn.execute(
         """
         SELECT rowid, text
@@ -202,16 +198,19 @@ def _like_hits(
         ORDER BY date_unixtime DESC
         LIMIT ?
         """,
-        (f"%{word.lower()}%", pool),
+        (f"%{needle}%", pool * 4),
     ).fetchall()
-    return {
-        int(row["rowid"]): (
-            0.5,
+    hits: dict[int, tuple[float, str]] = {}
+    for row in rows:
+        if not _text_matches_single_word(row["text"], word):
+            continue
+        hits[int(row["rowid"])] = (
+            0.45,
             _make_snippet(row["text"], [word]),
         )
-        for row in rows
-        if _text_matches_single_word(row["text"], word)
-    }
+        if len(hits) >= pool:
+            break
+    return hits
 
 
 def _fts_hits(
@@ -222,19 +221,36 @@ def _fts_hits(
     lemmatize: bool,
 ) -> dict[int, tuple[float, str]]:
     words = _query_words(query)
-    fts_q = _fts_query(query, lemmatize=lemmatize)
-    if not fts_q:
+    if not words:
         return {}
 
-    hits = _run_fts_query(conn, fts_q, words, pool=pool)
+    fts_q = _fts_query(query, lemmatize=lemmatize)
+    hits: dict[int, tuple[float, str]] = {}
+    if fts_q:
+        hits = _run_fts_query(conn, fts_q, words, pool=pool)
 
-    if len(words) == 1 and not hits:
-        prefix_q = _fts_query(query, lemmatize=lemmatize, prefix=True)
-        if prefix_q != fts_q:
-            hits = _run_fts_query(conn, prefix_q, words, pool=pool)
+    if len(words) == 1:
+        word = words[0]
 
-    if len(words) == 1 and not hits:
-        hits = _like_hits(conn, words[0], pool=pool)
+        if not hits:
+            prefix_q = _fts_query(query, lemmatize=lemmatize, prefix=True)
+            if prefix_q and prefix_q != fts_q:
+                hits = _run_fts_query(conn, prefix_q, words, pool=pool)
+
+        if not hits:
+            for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
+                hits = _run_fts_query(conn, f"{pfx}*", words, pool=pool)
+                if hits:
+                    break
+
+        if not hits:
+            for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
+                hits = _like_hits(conn, word, pool=pool, prefix=pfx)
+                if hits:
+                    break
+
+        if not hits:
+            hits = _like_hits(conn, word, pool=pool)
 
     return hits
 
