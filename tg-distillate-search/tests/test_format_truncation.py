@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from tg_search.format import MAX_MESSAGE_LEN, format_hits
+from tg_search.format import MAX_MESSAGE_LEN, format_hits, split_hits_to_messages
 from tg_search.search import SearchHit
 
 
@@ -27,14 +27,19 @@ def _make_hit(i: int) -> SearchHit:
 class TestFormatTruncation(unittest.TestCase):
     def test_stops_at_complete_results(self) -> None:
         hits = [_make_hit(i) for i in range(1, 41)]
-        result = format_hits(hits, "сухопарник", show_total=True)
+        result = format_hits(hits, "сухопарник")
         self.assertLess(result.fitted, len(hits))
         self.assertTrue(result.truncated)
         self.assertLessEqual(len(result.text), MAX_MESSAGE_LEN)
-        self.assertNotIn("… (обрезано)", result.text)
-        self.assertIn("Лимит Telegram", result.text)
         self.assertIn("<b>1.</b>", result.text)
-        self.assertNotIn("<b>41.</b>", result.text)
+
+    def test_split_into_multiple_messages(self) -> None:
+        hits = [_make_hit(i) for i in range(1, 41)]
+        chunks = split_hits_to_messages(hits, "сухопарник")
+        self.assertGreater(len(chunks), 1)
+        total = sum(c.fitted for c in chunks)
+        self.assertEqual(total, len(hits))
+        self.assertIn("продолжение", chunks[1].text)
 
 
 if __name__ == "__main__":

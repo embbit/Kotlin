@@ -43,6 +43,7 @@ def format_hits(
     start_index: int = 1,
     page: int = 1,
     show_total: bool = False,
+    continuation: bool = False,
 ) -> FormatResult:
     if not hits:
         return FormatResult(
@@ -51,7 +52,9 @@ def format_hits(
             truncated=False,
         )
 
-    if show_total:
+    if continuation:
+        lines = [f"«{_esc(query)}» · продолжение", ""]
+    elif show_total:
         lines = [f"«{_esc(query)}» · показано <b>{len(hits)}</b>", ""]
     elif page > 1:
         lines = [f"«{_esc(query)}» · стр. <b>{page}</b>", ""]
@@ -59,7 +62,7 @@ def format_hits(
         lines = [f"«{_esc(query)}»", ""]
 
     fitted = 0
-    reserve = 120 if len(hits) > 5 else 20
+    reserve = 80 if len(hits) > 3 else 20
     for i, hit in enumerate(hits, start_index):
         block = _hit_block(hit, i)
         candidate = "\n".join(lines + block).strip()
@@ -68,15 +71,47 @@ def format_hits(
         lines.extend(block)
         fitted += 1
 
-    truncated = fitted < len(hits)
-    if truncated:
-        lines.append(
-            f"<i>Лимит Telegram (~{MAX_MESSAGE_LEN} симв.) — "
-            f"показано {fitted} из {len(hits)}. Дальше не влезет.</i>"
+    if continuation and fitted > 0:
+        end_index = start_index + fitted - 1
+        header = (
+            f"«{_esc(query)}» · <b>{start_index}</b>"
+            if fitted == 1
+            else f"«{_esc(query)}» · <b>{start_index}–{end_index}</b>"
         )
+        lines[0] = header
 
     return FormatResult(
         text="\n".join(lines).strip(),
         fitted=fitted,
-        truncated=truncated,
+        truncated=fitted < len(hits),
     )
+
+
+def split_hits_to_messages(
+    hits: list[SearchHit],
+    query: str,
+    *,
+    start_index: int = 1,
+) -> list[FormatResult]:
+    """Split hits into one or more Telegram-sized message chunks."""
+    if not hits:
+        return [format_hits([], query)]
+
+    chunks: list[FormatResult] = []
+    remaining = hits
+    idx = start_index
+    first = True
+    while remaining:
+        chunk = format_hits(
+            remaining,
+            query,
+            start_index=idx,
+            continuation=not first,
+        )
+        chunks.append(chunk)
+        if not chunk.truncated:
+            break
+        remaining = remaining[chunk.fitted :]
+        idx += chunk.fitted
+        first = False
+    return chunks

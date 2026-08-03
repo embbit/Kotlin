@@ -20,9 +20,10 @@ def save_session(
     *,
     query: str,
     shown: int,
+    messages: int = 1,
 ) -> None:
     sessions = user_data.setdefault(SESSIONS_KEY, {})
-    sessions[session_id] = {"query": query, "shown": shown}
+    sessions[session_id] = {"query": query, "shown": shown, "messages": messages}
     if len(sessions) > 5:
         oldest = next(iter(sessions))
         del sessions[oldest]

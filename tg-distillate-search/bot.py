@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import sys
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -26,7 +26,7 @@ except ImportError:
 
 from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
-from tg_search.format import _esc, format_hits
+from tg_search.format import FormatResult, _esc, split_hits_to_messages
 from tg_search.pagination import (
     clear_sessions,
     get_session,
@@ -62,6 +62,7 @@ HELP_TEXT = (
     "Поиск по архиву <b>Дистиллят</b> (канал + чат).\n\n"
     "Отправьте слова запроса — верну первые результаты со ссылками.\n"
     "Кнопка <b>Дальше</b> добавляет ещё результаты, <b>Стоп</b> — убирает кнопки.\n"
+    "Если не влезает в одно сообщение — продолжение придёт новым.\n"
     "Приоритет у <b>свежих</b> сообщений.\n\n"
     "Команды:\n"
     "/start — справка\n"
@@ -95,10 +96,13 @@ async def _deny_callback(update: Update) -> None:
         await update.callback_query.answer("Доступ запрещён.", show_alert=True)
 
 
-def _run_search(context: ContextTypes.DEFAULT_TYPE, query: str, shown: int):
+def _search_chunks(
+    context: ContextTypes.DEFAULT_TYPE,
+    query: str,
+    shown: int,
+) -> tuple[list[FormatResult], bool]:
     config: BotConfig = context.bot_data["config"]
     vector_index = context.bot_data.get("vector_index")
-    page_size = config.search_limit
     result = search_page(
         config.db_path,
         query,
@@ -106,42 +110,91 @@ def _run_search(context: ContextTypes.DEFAULT_TYPE, query: str, shown: int):
         offset=0,
         vector_index=vector_index,
     )
-    expanded = shown > page_size
-    formatted = format_hits(
-        result.hits,
-        query,
-        show_total=expanded,
-    )
-    has_more = result.has_more and not formatted.truncated
-    return result, formatted.text, page_size, has_more, formatted.fitted
+    chunks = split_hits_to_messages(result.hits, query)
+    has_more = result.has_more and sum(c.fitted for c in chunks) >= shown
+    return chunks, has_more
+
+
+async def _send_html(
+    message: Message,
+    text: str,
+    *,
+    reply_markup=None,
+    edit: bool = False,
+) -> Message:
+    kwargs = {
+        "text": text,
+        "parse_mode": ParseMode.HTML,
+        "disable_web_page_preview": True,
+        "reply_markup": reply_markup,
+    }
+    if edit:
+        return await message.edit_text(**kwargs)
+    return await message.reply_text(**kwargs)
+
+
+async def _deliver_chunks(
+    anchor: Message,
+    chunks: list[FormatResult],
+    *,
+    session_id: str,
+    has_more: bool,
+    prev_messages: int,
+    edit: bool,
+) -> None:
+    keyboard = _build_keyboard(session_id, has_more=has_more)
+    n = len(chunks)
+
+    if n == 1:
+        await _send_html(anchor, chunks[0].text, reply_markup=keyboard, edit=edit)
+        return
+
+    if n == prev_messages:
+        await _send_html(anchor, chunks[-1].text, reply_markup=keyboard, edit=True)
+        return
+
+    # Finalize the message that had the button, then send continuation(s).
+    await _send_html(anchor, chunks[prev_messages - 1].text, reply_markup=None, edit=True)
+
+    for i in range(prev_messages, n - 1):
+        anchor = await _send_html(anchor, chunks[i].text)
+
+    await _send_html(anchor, chunks[-1].text, reply_markup=keyboard)
 
 
 async def _send_search_page(
     *,
     context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int,
+    message: Message,
     query: str,
     shown: int,
-    reply_fn,
 ) -> None:
-    result, text, page_size, has_more, fitted = _run_search(context, query, shown)
+    chunks, has_more = _search_chunks(context, query, shown)
 
-    if not result.hits:
-        if shown > page_size:
-            text = f"«{_esc(query)}»\n\nБольше результатов нет."
-        await reply_fn(text, reply_markup=None)
+    if not chunks or chunks[0].fitted == 0:
+        text = f"По запросу «{_esc(query)}» ничего не найдено."
+        await _send_html(message, text)
         return
 
     session_id = new_session_id()
+    total = sum(c.fitted for c in chunks)
     save_session(
         context.user_data,
         session_id,
         query=query,
-        shown=fitted,
+        shown=total,
+        messages=len(chunks),
     )
     keyboard = _build_keyboard(session_id, has_more=has_more)
 
-    await reply_fn(text, reply_markup=keyboard)
+    if len(chunks) == 1:
+        await _send_html(message, chunks[0].text, reply_markup=keyboard)
+        return
+
+    anchor = await _send_html(message, chunks[0].text)
+    for chunk in chunks[1:-1]:
+        anchor = await _send_html(anchor, chunk.text)
+    await _send_html(anchor, chunks[-1].text, reply_markup=keyboard)
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -195,27 +248,18 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     clear_sessions(context.user_data)
     await update.message.chat.send_action("typing")
 
-    async def reply(text, reply_markup=None):
-        await update.message.reply_text(
-            text,
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
-            reply_markup=reply_markup,
-        )
-
     await _send_search_page(
         context=context,
-        chat_id=update.message.chat_id,
+        message=update.message,
         query=query,
         shown=config.search_limit,
-        reply_fn=reply,
     )
 
 
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     callback = update.callback_query
-    if not callback or not callback.data:
+    if not callback or not callback.data or not callback.message:
         return
 
     if not update.effective_user or not _allowed(config, update.effective_user):
@@ -246,10 +290,13 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     await callback.answer()
-    shown = next_shown(session["shown"], config.search_limit)
-    result, text, page_size, has_more, fitted = _run_search(context, query, shown)
+    prev_shown = session["shown"]
+    prev_messages = session.get("messages", 1)
+    target = next_shown(prev_shown, config.search_limit)
+    chunks, has_more = _search_chunks(context, query, target)
+    total = sum(c.fitted for c in chunks)
 
-    if fitted <= session["shown"]:
+    if total <= prev_shown:
         await callback.edit_message_text(
             f"«{_esc(query)}»\n\nБольше результатов нет.",
             parse_mode=ParseMode.HTML,
@@ -261,15 +308,17 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         context.user_data,
         session_id,
         query=query,
-        shown=fitted,
+        shown=total,
+        messages=len(chunks),
     )
-    keyboard = _build_keyboard(session_id, has_more=has_more)
 
-    await callback.edit_message_text(
-        text,
-        parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True,
-        reply_markup=keyboard,
+    await _deliver_chunks(
+        callback.message,
+        chunks,
+        session_id=session_id,
+        has_more=has_more,
+        prev_messages=prev_messages,
+        edit=True,
     )
 
 
