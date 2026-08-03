@@ -14,12 +14,22 @@ def _esc(text: str) -> str:
     return html.escape(text, quote=False)
 
 
-def format_hits(hits: list[SearchHit], query: str) -> str:
+def format_hits(
+    hits: list[SearchHit],
+    query: str,
+    *,
+    start_index: int = 1,
+    page: int = 1,
+) -> str:
     if not hits:
         return f"По запросу «{_esc(query)}» ничего не найдено."
 
-    lines = [f"Найдено: <b>{len(hits)}</b> · «{_esc(query)}»", ""]
-    for i, hit in enumerate(hits, 1):
+    if page > 1:
+        lines = [f"«{_esc(query)}» · стр. <b>{page}</b>", ""]
+    else:
+        lines = [f"«{_esc(query)}»", ""]
+
+    for i, hit in enumerate(hits, start_index):
         author = _esc(hit.from_name or "Unknown")
         date = _esc(hit.date_iso[:10])
         snippet = _esc(hit.snippet)

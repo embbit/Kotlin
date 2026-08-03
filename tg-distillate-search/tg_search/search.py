@@ -103,20 +103,41 @@ def _fts_hits(conn: sqlite3.Connection, query: str, *, pool: int) -> dict[int, t
     }
 
 
+@dataclass
+class SearchPage:
+    hits: list[SearchHit]
+    has_more: bool
+    offset: int
+
+
 def search(
     db_path: Path,
     query: str,
     *,
     limit: int = 10,
+    offset: int = 0,
     vector_index: VectorIndex | None = None,
 ) -> list[SearchHit]:
+    return search_page(
+        db_path, query, limit=limit, offset=offset, vector_index=vector_index
+    ).hits
+
+
+def search_page(
+    db_path: Path,
+    query: str,
+    *,
+    limit: int = 10,
+    offset: int = 0,
+    vector_index: VectorIndex | None = None,
+) -> SearchPage:
     query = query.strip()
     if not query:
-        return []
+        return SearchPage(hits=[], has_more=False, offset=offset)
 
     conn = connect(db_path)
     try:
-        pool = max(limit * 10, 50)
+        pool = min(max((offset + limit) * 3, 50), 500)
 
         fts_map = _fts_hits(conn, query, pool=pool)
         vector_map: dict[int, float] = {}
@@ -126,7 +147,7 @@ def search(
 
         candidate_rowids = set(fts_map) | set(vector_map)
         if not candidate_rowids:
-            return []
+            return SearchPage(hits=[], has_more=False, offset=offset)
 
         messages = _fetch_messages(conn, list(candidate_rowids))
         now = int(time.time())
@@ -172,6 +193,8 @@ def search(
             )
 
         scored.sort(key=lambda h: (-h.score, -h.date_unixtime))
-        return scored[:limit]
+        page = scored[offset : offset + limit]
+        has_more = len(scored) > offset + limit
+        return SearchPage(hits=page, has_more=has_more, offset=offset)
     finally:
         conn.close()
