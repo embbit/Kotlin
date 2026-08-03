@@ -16,6 +16,8 @@ from tg_search.lemmatize import lemmatize_text, lemmatize_word
 
 CHAT_FIXTURE = Path(__file__).parent / "fixtures" / "sample_export.json"
 
+GLUE_POST = "Ой а еще рассказали как клеем БФ можно наколдыриться)"
+
 WHISKEY_BARREL_STORY = (
     "Два года назад имел опыт работы с данным сырьем! По просьбе брата жены, который любит виски "
     "решил попробовать на концентратах, брал две канистры по 14 кг и ставил бродить в две бочки "
@@ -31,6 +33,12 @@ class TestMultiWordSearch(unittest.TestCase):
         self.assertIn("бочка", words)
         self.assertNotIn("в", words)
         self.assertNotIn("с", words)
+
+    def test_glue_post_not_matched(self) -> None:
+        words = content_words("нюансы работы с новыми бочками", lemmatize_word)
+        self.assertFalse(
+            text_matches_multi_word(GLUE_POST, words, lemmatize_word=lemmatize_word)
+        )
 
     def test_scattered_story_fails_proximity(self) -> None:
         words = content_words("нюансы работы с новыми бочками", lemmatize_word)

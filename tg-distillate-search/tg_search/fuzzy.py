@@ -9,6 +9,7 @@ WORD_RE = re.compile(r"[\w\u0400-\u04FF]+", re.UNICODE)
 
 SHORT_PREFIX_MIN = 3
 SHORT_PREFIX_TRY = (5, 4, 3)
+MIN_SUBSTRING_LEN = 3
 PROXIMITY_WINDOW_BASE = 50
 PROXIMITY_WINDOW_PER_WORD = 20
 PROXIMITY_WINDOW_MAX = 160
@@ -43,7 +44,11 @@ def fuzzy_token_match(query: str, token: str) -> bool:
     q, t = query.lower(), token.lower()
     if not q or not t:
         return False
-    if q == t or q in t or t in q:
+    if q == t:
+        return True
+    if len(t) >= MIN_SUBSTRING_LEN and t in q:
+        return True
+    if len(q) >= MIN_SUBSTRING_LEN and q in t:
         return True
 
     common = shared_prefix_len(q, t)
@@ -57,21 +62,47 @@ def fuzzy_token_match(query: str, token: str) -> bool:
     return levenshtein(q, t) <= max_edits
 
 
-def text_matches_query_word(text: str, word: str, *, lemmatize_word) -> bool:
+def _token_matches_word(
+    token: str,
+    word: str,
+    *,
+    lemmatize_word,
+    allow_fuzzy: bool,
+) -> bool:
+    tl = token.lower()
+    if len(tl) < 2:
+        return False
+    w = word.lower()
+    if tl == w:
+        return True
+    query_lemma = lemmatize_word(word).lower()
+    if lemmatize_word(token).lower() == query_lemma:
+        return True
+    if allow_fuzzy and len(tl) >= MIN_SUBSTRING_LEN and fuzzy_token_match(word, token):
+        return True
+    return False
+
+
+def text_matches_query_word(
+    text: str,
+    word: str,
+    *,
+    lemmatize_word,
+    allow_fuzzy: bool = True,
+) -> bool:
     lower = text.lower()
     w = word.lower()
     if w in lower:
         return True
 
     query_lemma = lemmatize_word(word).lower()
-    if query_lemma in lower:
+    if len(query_lemma) >= MIN_SUBSTRING_LEN and query_lemma in lower:
         return True
 
     for token in WORD_RE.findall(text):
-        tl = token.lower()
-        if lemmatize_word(token).lower() == query_lemma:
-            return True
-        if fuzzy_token_match(word, token):
+        if _token_matches_word(
+            token, word, lemmatize_word=lemmatize_word, allow_fuzzy=allow_fuzzy
+        ):
             return True
     return False
 
@@ -81,9 +112,14 @@ def count_content_matches(
     words: list[str],
     *,
     lemmatize_word,
+    allow_fuzzy: bool = True,
 ) -> int:
     return sum(
-        1 for word in words if text_matches_query_word(text, word, lemmatize_word=lemmatize_word)
+        1
+        for word in words
+        if text_matches_query_word(
+            text, word, lemmatize_word=lemmatize_word, allow_fuzzy=allow_fuzzy
+        )
     )
 
 
@@ -114,10 +150,13 @@ def proximity_match_ratio(
         return 1.0 if text_matches_query_word(text, words[0], lemmatize_word=lemmatize_word) else 0.0
 
     window = window or proximity_window_chars(len(words))
+    allow_fuzzy = len(words) <= 2
     tagged: list[tuple[int, int, int]] = []
     for wi, word in enumerate(words):
         for start, end, token in _token_spans(text):
-            if text_matches_query_word(token, word, lemmatize_word=lemmatize_word):
+            if _token_matches_word(
+                token, word, lemmatize_word=lemmatize_word, allow_fuzzy=allow_fuzzy
+            ):
                 tagged.append((start, end, wi))
 
     if not tagged:
@@ -162,7 +201,10 @@ def text_matches_multi_word(
         return True
     if len(words) == 1:
         return text_matches_query_word(text, words[0], lemmatize_word=lemmatize_word)
-    matches = count_content_matches(text, words, lemmatize_word=lemmatize_word)
+    allow_fuzzy = len(words) <= 2
+    matches = count_content_matches(
+        text, words, lemmatize_word=lemmatize_word, allow_fuzzy=allow_fuzzy
+    )
     needed = multi_word_match_threshold(len(words))
     if matches < needed:
         return False

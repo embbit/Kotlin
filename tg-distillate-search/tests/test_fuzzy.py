@@ -25,6 +25,11 @@ class TestFuzzyTokenMatch(unittest.TestCase):
         self.assertFalse(fuzzy_token_match("жинжинья", "гравицапа"))
         self.assertFalse(fuzzy_token_match("сухопарник", "колонна"))
 
+    def test_short_token_not_substring_of_query(self) -> None:
+        self.assertFalse(fuzzy_token_match("нюанс", "а"))
+        self.assertFalse(fuzzy_token_match("работа", "а"))
+        self.assertFalse(fuzzy_token_match("бочка", "а"))
+
 
 class TestFuzzySearch(unittest.TestCase):
     def test_query_finds_slang_variant(self) -> None:
