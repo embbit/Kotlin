@@ -79,6 +79,15 @@ journalctl -u distillate-bot -f
 
 Adjust `User=` and paths in the unit file if needed.
 
+### Update code on VPS
+
+```bash
+cd tg-distillate-search
+./deploy/deploy.sh user@your-vps
+```
+
+Or manually copy files and `sudo systemctl restart distillate-bot`.
+
 ## 3. Build vectors (semantic + fresh results)
 
 ```bash
@@ -96,7 +105,7 @@ Search = **vectors + FTS + recency** (newer messages rank higher).
 | Input | Action |
 |-------|--------|
 | `дефлегматор` | Search (first page + links, recent first) |
-| **Дальше ➡️** / **Стоп** | Next page / hide buttons |
+| **Дальше ➡️** / **Стоп** | Добавить ещё результаты / убрать кнопки |
 | `/start` | Help |
 | `/stats` | Archive size, vectors, import date |
 
