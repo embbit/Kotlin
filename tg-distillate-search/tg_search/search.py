@@ -240,6 +240,81 @@ def _like_hits(
     return hits
 
 
+def _single_word_fts_hits(
+    conn: sqlite3.Connection,
+    word: str,
+    *,
+    pool: int,
+) -> dict[int, tuple[float, str]]:
+    """FTS + prefix/LIKE fallback for one query word (typos, slang)."""
+    words = [word]
+    fts_q = _fts_query_words(words)
+    hits: dict[int, tuple[float, str]] = {}
+    if fts_q:
+        hits = _run_fts_query(conn, fts_q, words, pool=pool)
+
+    if not hits:
+        prefix_q = _fts_query_words(words, prefix=True)
+        if prefix_q and prefix_q != fts_q:
+            hits = _run_fts_query(conn, prefix_q, words, pool=pool)
+
+    if not hits:
+        for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
+            hits = _run_fts_query(conn, f"{pfx}*", words, pool=pool)
+            if hits:
+                break
+
+    if not hits:
+        for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
+            hits = _like_hits(conn, word, pool=pool, prefix=pfx)
+            if hits:
+                break
+
+    if not hits:
+        hits = _like_hits(conn, word, pool=pool)
+    return hits
+
+
+def _multi_word_typo_hits(
+    conn: sqlite3.Connection,
+    words: list[str],
+    *,
+    pool: int,
+) -> dict[int, tuple[float, str]]:
+    """When strict FTS AND finds nothing, intersect per-word fuzzy pools."""
+    if len(words) < 2:
+        return {}
+
+    per_word = [_single_word_fts_hits(conn, word, pool=pool) for word in words]
+    if not per_word[0]:
+        return {}
+
+    common = set(per_word[0])
+    for word_hits in per_word[1:]:
+        if not word_hits:
+            return {}
+        common &= set(word_hits)
+    if not common:
+        return {}
+
+    hits: dict[int, tuple[float, str]] = {}
+    for rowid in common:
+        score = min(word_hits[rowid][0] for word_hits in per_word)
+        hits[rowid] = (score * 0.85, _make_snippet("", words))
+    # Snippets need message text — fetch for common rowids
+    if hits:
+        rows = conn.execute(
+            f"SELECT rowid, text FROM messages WHERE rowid IN ({','.join('?' * len(common))})",
+            list(common),
+        ).fetchall()
+        text_by_row = {int(r["rowid"]): r["text"] for r in rows}
+        for rowid in list(hits):
+            score, _ = hits[rowid]
+            text = text_by_row.get(rowid, "")
+            hits[rowid] = (score, _make_snippet(text, words))
+    return hits
+
+
 def _fts_hits(
     conn: sqlite3.Connection,
     query: str,
@@ -271,26 +346,10 @@ def _fts_hits(
 
     if len(words) == 1:
         word = words[0]
+        hits = _single_word_fts_hits(conn, word, pool=pool)
 
-        if not hits:
-            prefix_q = _fts_query_words(words, prefix=True)
-            if prefix_q and prefix_q != fts_q:
-                hits = _run_fts_query(conn, prefix_q, words, pool=pool)
-
-        if not hits:
-            for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
-                hits = _run_fts_query(conn, f"{pfx}*", words, pool=pool)
-                if hits:
-                    break
-
-        if not hits:
-            for pfx in short_prefixes(word, lemmatize_word=lemmatize_word):
-                hits = _like_hits(conn, word, pool=pool, prefix=pfx)
-                if hits:
-                    break
-
-        if not hits:
-            hits = _like_hits(conn, word, pool=pool)
+    elif not hits:
+        hits = _multi_word_typo_hits(conn, words, pool=pool)
 
     if fts_q:
         external = _external_fts_hits(
