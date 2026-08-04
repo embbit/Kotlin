@@ -1,0 +1,18 @@
+#!/bin/bash
+# Cron entry: sync hrtz.store + YouTube, embed new chunks.
+# Install: sudo cp deploy/update-sources.cron /etc/cron.d/distillate-sources
+set -euo pipefail
+
+ROOT="/opt/distillate/tg-distillate-search"
+DB="/opt/distillate/distillate.db"
+LOG="/opt/distillate/update_sources.log"
+
+cd "$ROOT"
+set -a
+# shellcheck disable=SC1091
+source /opt/distillate/.env
+set +a
+
+exec >>"$LOG" 2>&1
+echo "=== $(date -Is) update_sources ==="
+.venv/bin/python3 update_sources.py -d "$DB"
