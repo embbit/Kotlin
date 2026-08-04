@@ -57,14 +57,19 @@ def fts_word_group(alternatives: list[str], *, prefix: bool = False) -> str:
         if prefix and len(word) >= 3:
             parts.append(f"{word}*")
         else:
-            parts.append(f'"{word}"')
+            parts.append(word)
     return "(" + " OR ".join(parts) + ")"
 
 
 def fts_query_from_groups(groups: list[list[str]], *, prefix: bool = False) -> str:
     if not groups:
         return ""
-    return " ".join(fts_word_group(group, prefix=prefix) for group in groups)
+    parts = [fts_word_group(group, prefix=prefix) for group in groups if group]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    return " AND ".join(parts)
 
 
 def text_matches_synonym_word(text: str, word: str, *, lemmatize_word) -> bool:
@@ -92,3 +97,35 @@ def title_topic_boost(
             if alt in title:
                 return 1.4
     return 1.0
+
+
+def text_matches_multi_word_synonyms(
+    text: str,
+    words: list[str],
+    *,
+    lemmatize_word,
+) -> bool:
+    from tg_search.fuzzy import (
+        min_proximity_ratio,
+        multi_word_match_threshold,
+        proximity_match_ratio,
+    )
+
+    if not words:
+        return True
+    if len(words) == 1:
+        return text_matches_synonym_word(text, words[0], lemmatize_word=lemmatize_word)
+
+    matches = sum(
+        1
+        for word in words
+        if text_matches_synonym_word(text, word, lemmatize_word=lemmatize_word)
+    )
+    needed = multi_word_match_threshold(len(words))
+    if matches < needed:
+        return False
+    if len(words) >= 3:
+        return proximity_match_ratio(text, words, lemmatize_word=lemmatize_word) >= min_proximity_ratio(
+            len(words)
+        )
+    return True

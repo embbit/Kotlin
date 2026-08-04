@@ -15,7 +15,6 @@ from tg_search.fuzzy import (
     best_match_needle,
     proximity_match_ratio,
     short_prefixes,
-    text_matches_multi_word,
     text_matches_query_word,
 )
 from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
@@ -24,6 +23,7 @@ from tg_search.lemmas import lemmas_indexed
 from tg_search.query_synonyms import (
     expand_word_groups,
     fts_query_from_groups,
+    text_matches_multi_word_synonyms,
     text_matches_synonym_word,
     title_topic_boost,
 )
@@ -475,7 +475,7 @@ def search_page(
             scored = [
                 h
                 for h in scored
-                if text_matches_multi_word(
+                if text_matches_multi_word_synonyms(
                     h.text, words, lemmatize_word=lemmatize_word
                 )
             ]

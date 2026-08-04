@@ -26,6 +26,12 @@ class TestQuerySynonyms(unittest.TestCase):
         self.assertIn("энзим", q)
         self.assertIn("фермент", q)
 
+    def test_fts_multiword_uses_and(self) -> None:
+        groups = expand_word_groups(["заказать", "энзим"])
+        q = fts_query_from_groups(groups)
+        self.assertIn(" AND ", q)
+        self.assertIn("OR", q)
+
     def test_text_match_across_synonyms(self) -> None:
         self.assertTrue(
             text_matches_synonym_word(
