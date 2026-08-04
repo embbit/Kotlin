@@ -24,6 +24,7 @@ try:
 except ImportError:
     pass
 
+from tg_search.access import admin_user, allowed_user
 from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
 from tg_search.format import FormatResult, _esc, split_hits_to_messages
@@ -65,18 +66,15 @@ HELP_TEXT = (
     "Если не влезает в одно сообщение — продолжение придёт новым.\n"
     "Приоритет у <b>свежих</b> сообщений.\n\n"
     "Команды:\n"
-    "/start — справка\n"
-    "/stats — сведения об архиве"
+    "/start — справка"
 )
 
+HELP_TEXT_ADMIN = HELP_TEXT + "\n/stats — сведения об архиве (админ)"
 
-def _allowed(config: BotConfig, user) -> bool:
-    if user is None:
-        return False
-    if user.id in config.allowed_user_ids:
-        return True
-    username = (user.username or "").lower()
-    return bool(username) and username in config.allowed_usernames
+
+async def _deny_admin(update: Update) -> None:
+    if update.message:
+        await update.message.reply_text("Команда /stats доступна только администраторам.")
 
 
 async def _deny_access(update: Update) -> None:
@@ -237,16 +235,22 @@ def _format_vector_stats(stats: dict) -> str:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
-    if not update.effective_user or not _allowed(config, update.effective_user):
+    if not update.effective_user or not allowed_user(config, update.effective_user):
         await _deny_access(update)
         return
-    await update.message.reply_text(HELP_TEXT, parse_mode=ParseMode.HTML)
+    help_text = (
+        HELP_TEXT_ADMIN if admin_user(config, update.effective_user) else HELP_TEXT
+    )
+    await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
 
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
-    if not update.effective_user or not _allowed(config, update.effective_user):
+    if not update.effective_user or not allowed_user(config, update.effective_user):
         await _deny_access(update)
+        return
+    if not admin_user(config, update.effective_user):
+        await _deny_admin(update)
         return
 
     conn = connect(config.db_path)
@@ -283,7 +287,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.message or not update.effective_user:
         return
-    if not _allowed(config, update.effective_user):
+    if not allowed_user(config, update.effective_user):
         await _deny_access(update)
         return
 
@@ -308,7 +312,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not callback or not callback.data or not callback.message:
         return
 
-    if not update.effective_user or not _allowed(config, update.effective_user):
+    if not update.effective_user or not allowed_user(config, update.effective_user):
         await _deny_callback(update)
         return
 
@@ -380,10 +384,13 @@ def main() -> int:
         return 1
 
     log.info(
-        "Starting bot db=%s allowed_ids=%s allowed_usernames=%s search_limit=%s",
+        "Starting bot db=%s allowed_ids=%s allowed_usernames=%s "
+        "admin_ids=%s admin_usernames=%s search_limit=%s",
         config.db_path,
         len(config.allowed_user_ids),
         len(config.allowed_usernames),
+        len(config.admin_user_ids),
+        len(config.admin_usernames),
         config.search_limit,
     )
 

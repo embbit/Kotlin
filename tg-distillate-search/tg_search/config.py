@@ -22,6 +22,8 @@ class BotConfig:
     db_path: Path
     allowed_user_ids: frozenset[int]
     allowed_usernames: frozenset[str]
+    admin_user_ids: frozenset[int]
+    admin_usernames: frozenset[str]
     search_limit: int
 
     @classmethod
@@ -43,6 +45,14 @@ class BotConfig:
                 "Set ALLOWED_USER_IDS and/or ALLOWED_USERNAMES (comma-separated)"
             )
 
+        raw_admin_ids = os.environ.get("ADMIN_USER_IDS", "").strip()
+        admin_ids = frozenset(int(x.strip()) for x in raw_admin_ids.split(",") if x.strip())
+        raw_admin_names = os.environ.get("ADMIN_USERNAMES", "").strip()
+        admin_names = _parse_usernames(raw_admin_names)
+        if not admin_ids and not admin_names:
+            admin_ids = allowed_ids
+            admin_names = allowed_names
+
         db_path = Path(os.environ.get("DB_PATH", "distillate.db"))
         search_limit = int(os.environ.get("SEARCH_LIMIT", "5"))
 
@@ -51,5 +61,7 @@ class BotConfig:
             db_path=db_path,
             allowed_user_ids=allowed_ids,
             allowed_usernames=allowed_names,
+            admin_user_ids=admin_ids,
+            admin_usernames=admin_names,
             search_limit=max(1, min(search_limit, 10)),
         )
