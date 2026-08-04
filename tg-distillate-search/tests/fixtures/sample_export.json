@@ -1,0 +1,48 @@
+{
+  "name": "Дистиллят & Чат.",
+  "type": "public_supergroup",
+  "id": 1663164507,
+  "messages": [
+    {
+      "id": 1,
+      "type": "service",
+      "date": "2022-07-22T12:00:00",
+      "date_unixtime": "1658487600",
+      "actor": "Group",
+      "action": "create_group"
+    },
+    {
+      "id": 2,
+      "type": "message",
+      "date": "2022-07-22T12:57:22",
+      "date_unixtime": "1658491042",
+      "from": "Alice",
+      "from_id": "user1",
+      "text": "простое сообщение про колонну"
+    },
+    {
+      "id": 3,
+      "type": "message",
+      "date": "2022-07-22T13:00:00",
+      "date_unixtime": "1658491200",
+      "from": "Bob",
+      "from_id": "user2",
+      "reply_to_message_id": 2,
+      "text": [
+        "смотри ",
+        {"type": "link", "text": "https://example.com"},
+        " и ",
+        {"type": "bold", "text": "дефлегматор"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "message",
+      "date": "2022-07-22T13:01:00",
+      "date_unixtime": "1658491260",
+      "from": "Carol",
+      "from_id": "user3",
+      "text": null
+    }
+  ]
+}
