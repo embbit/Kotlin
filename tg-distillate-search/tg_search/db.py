@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 
 SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -126,6 +126,12 @@ def _ensure_v4_columns(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE messages ADD COLUMN content_hash TEXT")
 
 
+def _ensure_v5_search_log(conn: sqlite3.Connection) -> None:
+    from tg_search.search_analytics import ensure_search_log
+
+    ensure_search_log(conn)
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     if not _table_exists(conn, "messages"):
         conn.executescript(SCHEMA_SQL)
@@ -139,6 +145,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     _ensure_v3_columns(conn)
     _ensure_v4_columns(conn)
+    _ensure_v5_search_log(conn)
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS chat_meta (

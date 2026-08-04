@@ -38,6 +38,7 @@ from tg_search.pagination import (
     save_session,
 )
 from tg_search.search import search_page
+from tg_search.search_analytics import build_search_stats, format_search_stats, log_search
 from tg_search.vector_index import VectorIndex, vector_build_stats
 
 logging.basicConfig(
@@ -69,12 +70,18 @@ HELP_TEXT = (
     "/start — справка"
 )
 
-HELP_TEXT_ADMIN = HELP_TEXT + "\n/stats — сведения об архиве (админ)"
+HELP_TEXT_ADMIN = (
+    HELP_TEXT
+    + "\n/stats — сведения об архиве (админ)"
+    + "\n/search_stats — статистика поисков (админ)"
+)
 
 
-async def _deny_admin(update: Update) -> None:
+async def _deny_admin(update: Update, *, command: str = "/stats") -> None:
     if update.message:
-        await update.message.reply_text("Команда /stats доступна только администраторам.")
+        await update.message.reply_text(
+            f"Команда {command} доступна только администраторам."
+        )
 
 
 async def _deny_access(update: Update) -> None:
@@ -98,7 +105,7 @@ def _search_chunks(
     context: ContextTypes.DEFAULT_TYPE,
     query: str,
     shown: int,
-) -> tuple[list[FormatResult], bool]:
+) -> tuple[list[FormatResult], bool, int]:
     config: BotConfig = context.bot_data["config"]
     vector_index = context.bot_data.get("vector_index")
     result = search_page(
@@ -110,7 +117,8 @@ def _search_chunks(
     )
     chunks = split_hits_to_messages(result.hits, query)
     has_more = result.has_more and sum(c.fitted for c in chunks) >= shown
-    return chunks, has_more
+    hits_count = len(result.hits)
+    return chunks, has_more, hits_count
 
 
 async def _send_html(
@@ -166,13 +174,13 @@ async def _send_search_page(
     message: Message,
     query: str,
     shown: int,
-) -> None:
-    chunks, has_more = _search_chunks(context, query, shown)
+) -> int:
+    chunks, has_more, hits_count = _search_chunks(context, query, shown)
 
     if not chunks or chunks[0].fitted == 0:
         text = f"По запросу «{_esc(query)}» ничего не найдено."
         await _send_html(message, text)
-        return
+        return hits_count
 
     session_id = new_session_id()
     total = sum(c.fitted for c in chunks)
@@ -187,12 +195,13 @@ async def _send_search_page(
 
     if len(chunks) == 1:
         await _send_html(message, chunks[0].text, reply_markup=keyboard)
-        return
+        return hits_count
 
     anchor = await _send_html(message, chunks[0].text)
     for chunk in chunks[1:-1]:
         anchor = await _send_html(anchor, chunk.text)
     await _send_html(anchor, chunks[-1].text, reply_markup=keyboard)
+    return hits_count
 
 
 def _fmt_num(n: int) -> str:
@@ -250,7 +259,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _deny_access(update)
         return
     if not admin_user(config, update.effective_user):
-        await _deny_admin(update)
+        await _deny_admin(update, command="/stats")
         return
 
     conn = connect(config.db_path)
@@ -283,6 +292,28 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
+async def cmd_search_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    config: BotConfig = context.bot_data["config"]
+    if not update.effective_user or not allowed_user(config, update.effective_user):
+        await _deny_access(update)
+        return
+    if not admin_user(config, update.effective_user):
+        await _deny_admin(update, command="/search_stats")
+        return
+
+    conn = connect(config.db_path)
+    try:
+        report = build_search_stats(conn, days=30)
+    finally:
+        conn.close()
+
+    await update.message.reply_text(
+        format_search_stats(report),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+
+
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config: BotConfig = context.bot_data["config"]
     if not update.message or not update.effective_user:
@@ -298,12 +329,25 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     clear_sessions(context.user_data)
     await update.message.chat.send_action("typing")
 
-    await _send_search_page(
+    hits_count = await _send_search_page(
         context=context,
         message=update.message,
         query=query,
         shown=config.search_limit,
     )
+
+    user = update.effective_user
+    conn = connect(config.db_path)
+    try:
+        log_search(
+            conn,
+            user_id=user.id,
+            username=user.username,
+            query_raw=query,
+            hits_count=hits_count,
+        )
+    finally:
+        conn.close()
 
 
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -343,7 +387,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     prev_shown = session["shown"]
     prev_messages = session.get("messages", 1)
     target = next_shown(prev_shown, config.search_limit)
-    chunks, has_more = _search_chunks(context, query, target)
+    chunks, has_more, _hits_count = _search_chunks(context, query, target)
     total = sum(c.fitted for c in chunks)
 
     if total <= prev_shown:
@@ -406,6 +450,7 @@ def main() -> int:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_start))
     app.add_handler(CommandHandler("stats", cmd_stats))
+    app.add_handler(CommandHandler("search_stats", cmd_search_stats))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
