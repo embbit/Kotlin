@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
+from tg_search.external_sources import HRTZ_CATALOG_CHAT_ID, HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
 
 if TYPE_CHECKING:
     from tg_search.search import SearchHit
@@ -20,7 +20,7 @@ def hit_dedupe_key(hit: SearchHit) -> str:
         match = YOUTUBE_VIDEO_ID_RE.search(hit.link)
         if match:
             return f"yt:{match.group(1)}"
-    if hit.chat_id == HRTZ_CHAT_ID:
+    if hit.chat_id in (HRTZ_CHAT_ID, HRTZ_CATALOG_CHAT_ID):
         return f"web:{hit.link.split('#', 1)[0]}"
     return f"tg:{hit.chat_id}:{hit.message_id}"
 

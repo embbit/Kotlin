@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
+from tg_search.external_sources import HRTZ_CATALOG_CHAT_ID, HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
 from tg_search.source_priority import (
     SOURCE_KIND_CHANNEL,
     SOURCE_KIND_CHAT,
@@ -20,6 +20,7 @@ class TestSourcePriority(unittest.TestCase):
     def test_kinds(self) -> None:
         self.assertEqual(source_kind(YOUTUBE_CHAT_ID, "youtube"), SOURCE_KIND_YOUTUBE)
         self.assertEqual(source_kind(HRTZ_CHAT_ID, "сайт"), SOURCE_KIND_WEB)
+        self.assertEqual(source_kind(HRTZ_CATALOG_CHAT_ID, "каталог"), SOURCE_KIND_WEB)
         self.assertEqual(source_kind(1, "канал", "channel"), SOURCE_KIND_CHANNEL)
         self.assertEqual(source_kind(2, "чат", "supergroup"), SOURCE_KIND_CHAT)
 

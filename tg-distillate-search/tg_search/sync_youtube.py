@@ -123,6 +123,19 @@ def list_channel_video_ids(channel_url: str = YOUTUBE_CHANNEL_URL) -> list[str]:
     return sorted(set(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)))
 
 
+def list_channel_short_ids(channel_url: str = YOUTUBE_CHANNEL_URL) -> list[str]:
+    html = _fetch(f"{channel_url}/shorts").decode("utf-8", errors="replace")
+    return sorted(set(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)))
+
+
+def list_all_channel_video_ids(channel_url: str = YOUTUBE_CHANNEL_URL) -> list[str]:
+    ids: set[str] = set()
+    ids.update(list_channel_video_ids(channel_url))
+    ids.update(list_channel_short_ids(channel_url))
+    ids.update(video.video_id for video in videos_from_rss())
+    return sorted(ids)
+
+
 def _seconds_from_timestamp(ts: str) -> int:
     parts = [int(x) for x in ts.split(":")]
     if len(parts) == 2:
@@ -208,25 +221,19 @@ def _format_timestamp(seconds: int) -> str:
 
 def _chunks_from_description(video: YouTubeVideo) -> list[tuple[int, str, str]]:
     chapters = _chapters_from_description(video.description)
-    if not chapters:
-        intro = video.description.strip()
-        if len(intro) > 80:
-            return [(0, intro[:2000], "0:00")]
-        return []
+    if chapters:
+        chunks: list[tuple[int, str, str]] = []
+        for index, (start, title, ts) in enumerate(chapters):
+            text = f"{video.title}\n\n{title}"
+            chunks.append((start, text, ts))
+        return chunks
 
-    chunks: list[tuple[int, str, str]] = []
-    desc_lines = video.description.splitlines()
-    for index, (start, title, ts) in enumerate(chapters):
-        end = chapters[index + 1][0] if index + 1 < len(chapters) else None
-        body_parts = [title]
-        for line in desc_lines:
-            if line.strip().startswith(ts):
-                continue
-            if any(line.strip().startswith(other_ts) for other_ts, _ in CHAPTER_RE.findall(line)):
-                continue
-        text = f"{video.title}\n\n{title}"
-        chunks.append((start, text, ts))
-    return chunks
+    intro = video.description.strip()
+    if len(intro) > 40:
+        return [(0, f"{video.title}\n\n{intro[:2000]}", "0:00")]
+    if intro:
+        return [(0, f"{video.title}\n\n{intro}", "0:00")]
+    return []
 
 
 def build_video_chunks(video: YouTubeVideo) -> list[tuple[int, str, str]]:
@@ -239,7 +246,7 @@ def build_video_chunks(video: YouTubeVideo) -> list[tuple[int, str, str]]:
 def sync_youtube_channel(
     conn: sqlite3.Connection,
     *,
-    include_shorts: bool = False,
+    include_shorts: bool = True,
 ) -> dict[str, int]:
     ensure_source(
         conn,
@@ -251,7 +258,7 @@ def sync_youtube_channel(
     )
 
     rss_videos = {v.video_id: v for v in videos_from_rss()}
-    video_ids = list_channel_video_ids()
+    video_ids = list_all_channel_video_ids()
     if not video_ids:
         video_ids = list(rss_videos)
 
@@ -288,6 +295,8 @@ def sync_youtube_channel(
             continue
 
         raw_chunks = build_video_chunks(video)
+        if not raw_chunks and video.description.strip():
+            raw_chunks = [(0, video.description.strip()[:2000], "0:00")]
         if not raw_chunks:
             errors += 1
             continue

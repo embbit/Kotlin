@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
+from tg_search.external_sources import HRTZ_CATALOG_CHAT_ID, HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
 
 SOURCE_KIND_YOUTUBE = "youtube"
 SOURCE_KIND_CHANNEL = "channel"
@@ -32,7 +32,7 @@ def source_kind(
 ) -> str:
     if chat_id == YOUTUBE_CHAT_ID:
         return SOURCE_KIND_YOUTUBE
-    if chat_id == HRTZ_CHAT_ID:
+    if chat_id in (HRTZ_CHAT_ID, HRTZ_CATALOG_CHAT_ID):
         return SOURCE_KIND_WEB
 
     label = (source_label or "").lower()
@@ -40,7 +40,7 @@ def source_kind(
 
     if label == "youtube" or stype == "youtube":
         return SOURCE_KIND_YOUTUBE
-    if label == "сайт" or stype == "web":
+    if label in {"сайт", "каталог"} or stype == "web":
         return SOURCE_KIND_WEB
     if "канал" in label or "channel" in stype:
         return SOURCE_KIND_CHANNEL

@@ -17,7 +17,7 @@ from tg_search.fuzzy import (
     short_prefixes,
     text_matches_query_word,
 )
-from tg_search.external_sources import HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
+from tg_search.external_sources import HRTZ_CATALOG_CHAT_ID, HRTZ_CHAT_ID, YOUTUBE_CHAT_ID
 from tg_search.lemmatize import lemmatize_word
 from tg_search.lemmas import lemmas_indexed
 from tg_search.query_synonyms import (
@@ -310,7 +310,7 @@ def _external_fts_hits(
 ) -> dict[int, tuple[float, str]]:
     """Top FTS hits from site/YouTube — not drowned out by chat volume."""
     hits: dict[int, tuple[float, str]] = {}
-    for chat_id in (HRTZ_CHAT_ID, YOUTUBE_CHAT_ID):
+    for chat_id in (HRTZ_CHAT_ID, HRTZ_CATALOG_CHAT_ID, YOUTUBE_CHAT_ID):
         rows = conn.execute(
             """
             SELECT
@@ -443,7 +443,7 @@ def search_page(
                 row["source_type"],
             )
 
-            if int(row["chat_id"]) in (HRTZ_CHAT_ID, YOUTUBE_CHAT_ID):
+            if int(row["chat_id"]) in (HRTZ_CHAT_ID, HRTZ_CATALOG_CHAT_ID, YOUTUBE_CHAT_ID):
                 total *= title_topic_boost(
                     row["from_name"],
                     words,
