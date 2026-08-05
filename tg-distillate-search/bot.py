@@ -25,6 +25,7 @@ except ImportError:
     pass
 
 from tg_search.access import admin_user, allowed_user
+from tg_search.bot_commands import query_from_mention, register_bot_commands
 from tg_search.config import BotConfig
 from tg_search.db import connect, count_messages, get_meta, list_sources
 from tg_search.format import FormatResult, _esc, split_hits_to_messages
@@ -62,12 +63,14 @@ def _build_keyboard(session_id: str, *, has_more: bool) -> InlineKeyboardMarkup 
 
 HELP_TEXT = (
     "Поиск по архиву <b>Дистиллят</b> (канал + чат).\n\n"
-    "Отправьте слова запроса — верну первые результаты со ссылками.\n"
+    "<b>В личке</b> — отправьте слова запроса или <code>/search слова</code>.\n"
+    "<b>В группе</b> — <code>/search слова</code> или <code>@бот слова</code>.\n"
     "Кнопка <b>Дальше</b> добавляет ещё результаты, <b>Стоп</b> — убирает кнопки.\n"
     "Если не влезает в одно сообщение — продолжение придёт новым.\n"
     "Приоритет у <b>свежих</b> сообщений.\n\n"
     "Команды:\n"
-    "/start — справка"
+    "/start — справка\n"
+    "/search — поиск"
 )
 
 HELP_TEXT_ADMIN = (
@@ -314,16 +317,13 @@ async def cmd_search_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
 
 
-async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _run_search(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    query: str,
+) -> None:
     config: BotConfig = context.bot_data["config"]
-    if not update.message or not update.effective_user:
-        return
-    if not allowed_user(config, update.effective_user):
-        await _deny_access(update)
-        return
-
-    query = (update.message.text or "").strip()
-    if not query or query.startswith("/"):
+    if not update.message:
         return
 
     clear_sessions(context.user_data)
@@ -337,6 +337,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     user = update.effective_user
+    if user is None:
+        return
     conn = connect(config.db_path)
     try:
         log_search(
@@ -348,6 +350,57 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     finally:
         conn.close()
+
+
+async def cmd_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    config: BotConfig = context.bot_data["config"]
+    if not update.effective_user or not allowed_user(config, update.effective_user):
+        await _deny_access(update)
+        return
+
+    query = " ".join(context.args).strip() if context.args else ""
+    if not query:
+        await update.message.reply_text(
+            "Использование: <code>/search слова запроса</code>\n"
+            "В группе также: <code>@бот слова</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    await _run_search(update, context, query)
+
+
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Plain-text search — private chats only."""
+    config: BotConfig = context.bot_data["config"]
+    if not update.message or not update.effective_user:
+        return
+    if not allowed_user(config, update.effective_user):
+        await _deny_access(update)
+        return
+
+    query = (update.message.text or "").strip()
+    if not query or query.startswith("/"):
+        return
+
+    await _run_search(update, context, query)
+
+
+async def on_group_mention(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """In groups, react only to @bot mentions (privacy mode friendly)."""
+    config: BotConfig = context.bot_data["config"]
+    if not update.message or not update.effective_user:
+        return
+
+    bot_username = context.bot.username
+    query = query_from_mention(update.message, bot_username or "")
+    if not query:
+        return
+
+    if not allowed_user(config, update.effective_user):
+        await _deny_access(update)
+        return
+
+    await _run_search(update, context, query)
 
 
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -444,15 +497,37 @@ def main() -> int:
     else:
         log.warning("Vector index missing — run build_vectors.py (FTS + recency only)")
 
-    app = Application.builder().token(config.token).build()
+    async def post_init(application: Application) -> None:
+        await register_bot_commands(application.bot)
+
+    app = (
+        Application.builder()
+        .token(config.token)
+        .post_init(post_init)
+        .build()
+    )
     app.bot_data["config"] = config
     app.bot_data["vector_index"] = vector_index
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_start))
+    app.add_handler(CommandHandler("search", cmd_search))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("search_stats", cmd_search_stats))
     app.add_handler(CallbackQueryHandler(on_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    app.add_handler(
+        MessageHandler(
+            filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND,
+            on_text,
+        )
+    )
+    app.add_handler(
+        MessageHandler(
+            (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
+            & filters.TEXT
+            & ~filters.COMMAND,
+            on_group_mention,
+        )
+    )
     app.run_polling(allowed_updates=Update.ALL_TYPES)
     return 0
 
