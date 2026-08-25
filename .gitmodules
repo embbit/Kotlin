@@ -1,4 +1,3 @@
-
-[submodule "Middlewares/vscp-framework"]
-	path = Middlewares/vscp-framework
+[submodule "Appl/Middlewares/vscp-framework"]
+	path = Appl/Middlewares/vscp-framework
 	url = https://github.com/embbit/vscp-framework.git
